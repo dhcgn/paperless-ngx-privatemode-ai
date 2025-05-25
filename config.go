@@ -13,6 +13,14 @@ type Config struct {
 	LLM        LLMConfig        `yaml:"llm"`
 	Filters    FiltersConfig    `yaml:"filters"`
 	Processing ProcessingConfig `yaml:"processing"`
+	Tools      ToolsConfig      `yaml:"tools"`
+}
+type ToolsConfig struct {
+	Imagemagick ImagemagickConfig `yaml:"imagemagick"`
+}
+
+type ImagemagickConfig struct {
+	FullPath string `yaml:"fullpath"`
 }
 
 type PaperlessConfig struct {
@@ -99,6 +107,13 @@ func (c *Config) Validate() error {
 	for _, pattern := range c.Filters.Content.Pattern {
 		if _, err := regexp.Compile(pattern); err != nil {
 			return fmt.Errorf("invalid content filter pattern '%s': %w", pattern, err)
+		}
+	}
+
+	// Validate Imagemagick path if set
+	if c.Tools.Imagemagick.FullPath != "" {
+		if _, err := os.Stat(c.Tools.Imagemagick.FullPath); err != nil {
+			return fmt.Errorf("imagemagick.fullpath does not exist or is not accessible: %w", err)
 		}
 	}
 

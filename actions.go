@@ -143,8 +143,96 @@ func (a *SetContentAction) Execute(executor *ActionExecutor) error {
 		return nil
 	}
 
-	// This would require PDF processing and image extraction
-	pterm.Warning.Println("Content extraction from PDFs is not yet implemented")
+	// Process documents
+	return executor.processOCRGeneration(filteredDocs, func(doc Document, newContent string, newTitle string) bool {
+		// Ask for user confirmation
+		confirmed, err := pterm.DefaultInteractiveConfirm.
+			WithDefaultValue(false).
+			WithDefaultText(fmt.Sprintf("Do you want to change the content of document '%s' to '%v' chars (title could be '%s')?\nUrl: %s\nChange content?", doc.Title, len(newContent), newTitle, executor.config.CreateUrl(doc.ID))).Show()
+		if err != nil {
+			return false
+		}
+		return confirmed
+	})
+}
+
+func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback func(Document, string, string) bool) error {
+	stats := &ProgressStats{
+		processed: 0,
+		success:   0,
+		errors:    0,
+		skipped:   0,
+		total:     len(documents),
+	}
+
+	pterm.Info.Println("Starting OCR generation process...")
+
+	for _, doc := range documents {
+
+		// Download document pdf
+		pdfBytes, err := e.paperlessClient.DownloadDocument(doc.ID)
+
+		jpegData, err := e.config.RenderPageToJpg(pdfBytes, 0)
+
+		newContent, err := e.llmClient.ExtractContent(jpegData)
+
+		// Generate new titles using LLM
+		titles, err := e.llmClient.GenerateTitleFromContent(newContent)
+		if err != nil {
+			pterm.Warning.Printf("Failed to generate title for document %d: %v\n", doc.ID, err)
+			stats.errors++
+			stats.processed++
+			stats.renderProgressChart()
+			continue
+		}
+
+		if len(titles) == 0 {
+			pterm.Warning.Printf("No titles generated for document %d\n", doc.ID)
+			stats.errors++
+			stats.processed++
+			stats.renderProgressChart()
+			continue
+		}
+
+		// Use the first generated title
+		newTitle := titles[0]
+		if newTitle == "RESCAN DOCUMENT" {
+			pterm.Warning.Printf("Document %d needs rescanning, skipping\n", doc.ID)
+			stats.errors++
+			stats.processed++
+			stats.renderProgressChart()
+			continue
+		}
+
+		if userCallback != nil {
+			pterm.Info.Println("Start User Interaction")
+			if !userCallback(doc, newContent, newTitle) {
+				pterm.Warning.Println("User cancelled this operation")
+				stats.skipped++
+				stats.processed++
+				stats.renderProgressChart()
+				continue
+			}
+			pterm.Info.Println("End of User Interaction")
+		}
+
+		// Update document content
+		updates := map[string]interface{}{
+			"content": newContent,
+		}
+
+		if err := e.paperlessClient.UpdateDocument(doc.ID, updates); err != nil {
+			pterm.Warning.Printf("Failed to update document %d: %v\n", doc.ID, err)
+			stats.errors++
+		} else {
+			stats.success++
+		}
+
+		stats.processed++
+		stats.renderProgressChart()
+	}
+
+	stats.renderFinalSummary(len(documents))
 	return nil
 }
 

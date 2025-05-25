@@ -58,3 +58,8 @@ filters:
 processing:
   title_generation:
     truncate_characters_of_content: 2000 
+
+
+tools:
+  imagemagick:
+    fullpath: 'C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe'

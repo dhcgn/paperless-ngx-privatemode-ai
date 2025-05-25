@@ -99,6 +99,34 @@ func (c *PaperlessClient) GetDocuments() ([]Document, error) {
 	return response.Results, nil
 }
 
+// DownloadDocument
+func (c *PaperlessClient) DownloadDocument(documentID int) ([]byte, error) {
+	url := strings.TrimSuffix(c.config.Paperless.API.BaseURL, "/") + "/api/documents/" + strconv.Itoa(documentID) + "/download/"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	c.addHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download document: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return body, nil
+}
+
 func (c *PaperlessClient) UpdateDocument(documentID int, updates map[string]interface{}) error {
 	url := strings.TrimSuffix(c.config.Paperless.API.BaseURL, "/") + "/api/documents/" + strconv.Itoa(documentID) + "/"
 
