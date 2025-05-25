@@ -58,7 +58,7 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 		return nil
 	}
 
-	// Display bar
+	// Display bar chart with document counts
 	bars := []pterm.Bar{
 		{Label: "All", Value: len(documents), Style: pterm.NewStyle(pterm.FgGray)},
 		{Label: "Filtered", Value: len(filteredDocs), Style: pterm.NewStyle(pterm.FgGreen)},
@@ -121,6 +121,13 @@ func (a *SetContentAction) Execute(executor *ActionExecutor) error {
 		pterm.Warning.Println("No documents found matching the content patterns")
 		return nil
 	}
+
+	// Display bar chart with document counts
+	bars := []pterm.Bar{
+		{Label: "All", Value: len(documents), Style: pterm.NewStyle(pterm.FgGray)},
+		{Label: "Filtered", Value: len(filteredDocs), Style: pterm.NewStyle(pterm.FgGreen)},
+	}
+	pterm.DefaultBarChart.WithHorizontal().WithBars(bars).WithShowValue().Render()
 
 	// Ask for confirmation
 	confirmed, err := pterm.DefaultInteractiveConfirm.
@@ -216,7 +223,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 
 	for _, doc := range documents {
 		// Generate new titles using LLM
-		titles, err := e.llmClient.GenerateTitle(doc.Content)
+		titles, err := e.llmClient.GenerateTitleFromContent(doc.Content)
 		if err != nil {
 			pterm.Warning.Printf("Failed to generate title for document %d: %v\n", doc.ID, err)
 			stats.errors++

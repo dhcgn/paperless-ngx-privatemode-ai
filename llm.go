@@ -103,8 +103,14 @@ func (c *LLMClient) CheckConnection() error {
 	return nil
 }
 
-func (c *LLMClient) GenerateTitle(content string) ([]string, error) {
-	// Truncate content if configured
+func (c *LLMClient) GenerateTitleFromContent(content string) ([]string, error) {
+	if content == "" {
+		return []string{
+			"EMPTY_CONTENT",
+		}, nil
+	}
+
+	// Validate content length	// Truncate content if configured
 	if c.config.Processing.TitleGeneration.TruncateCharactersOfContent > 0 &&
 		len(content) > c.config.Processing.TitleGeneration.TruncateCharactersOfContent {
 		content = content[:c.config.Processing.TitleGeneration.TruncateCharactersOfContent]
