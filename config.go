@@ -1,0 +1,113 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"regexp"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Config struct {
+	Paperless  PaperlessConfig  `yaml:"paperless"`
+	LLM        LLMConfig        `yaml:"llm"`
+	Filters    FiltersConfig    `yaml:"filters"`
+	Processing ProcessingConfig `yaml:"processing"`
+}
+
+type PaperlessConfig struct {
+	API struct {
+		BaseURL    string `yaml:"base_url"`
+		HostHeader string `yaml:"host_header"`
+		Token      string `yaml:"token"`
+		PageSize   int    `yaml:"page_size"`
+	} `yaml:"api"`
+	WebURL string `yaml:"web_url"`
+}
+
+type LLMConfig struct {
+	API struct {
+		BaseURL  string `yaml:"base_url"`
+		Endpoint string `yaml:"endpoint"`
+	} `yaml:"api"`
+	Models struct {
+		TitleGeneration   string `yaml:"title_generation"`
+		ContentExtraction string `yaml:"content_extraction"`
+	} `yaml:"models"`
+	Prompts struct {
+		TitleGeneration   string `yaml:"title_generation"`
+		ContentExtraction string `yaml:"content_extraction"`
+	} `yaml:"prompts"`
+}
+
+type FiltersConfig struct {
+	Title   FilterConfig `yaml:"title"`
+	Content FilterConfig `yaml:"content"`
+}
+
+type FilterConfig struct {
+	PatternType string   `yaml:"pattern_type"`
+	Pattern     []string `yaml:"pattern"`
+}
+
+type ProcessingConfig struct {
+	TitleGeneration struct {
+		TruncateCharactersOfContent int `yaml:"truncate_characters_of_content"`
+	} `yaml:"title_generation"`
+}
+
+func LoadConfig(configPath string) (*Config, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	return &config, nil
+}
+
+func (c *Config) Validate() error {
+	// Validate Paperless NGX config
+	if c.Paperless.API.BaseURL == "" {
+		return fmt.Errorf("paperless.api.base_url is required")
+	}
+	if c.Paperless.API.Token == "" {
+		return fmt.Errorf("paperless.api.token is required")
+	}
+
+	// Validate LLM config
+	if c.LLM.API.BaseURL == "" {
+		return fmt.Errorf("llm.api.base_url is required")
+	}
+	if c.LLM.Models.TitleGeneration == "" {
+		return fmt.Errorf("llm.models.title_generation is required")
+	}
+	if c.LLM.Models.ContentExtraction == "" {
+		return fmt.Errorf("llm.models.content_extraction is required")
+	}
+
+	// Validate regex patterns
+	for _, pattern := range c.Filters.Title.Pattern {
+		if _, err := regexp.Compile(pattern); err != nil {
+			return fmt.Errorf("invalid title filter pattern '%s': %w", pattern, err)
+		}
+	}
+	for _, pattern := range c.Filters.Content.Pattern {
+		if _, err := regexp.Compile(pattern); err != nil {
+			return fmt.Errorf("invalid content filter pattern '%s': %w", pattern, err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) CreateUrl(docID int) string {
+	if c.Paperless.WebURL == "" {
+		return fmt.Sprintf("%s/documents/%d", c.Paperless.API.BaseURL, docID)
+	}
+	return fmt.Sprintf("%s/documents/%d", c.Paperless.WebURL, docID)
+}
