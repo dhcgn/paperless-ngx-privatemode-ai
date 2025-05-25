@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,27 @@ import (
 	"strings"
 	"time"
 )
+
+// Vision types for OCR chat request
+type MessageContent struct {
+	Type     string    `json:"type"`
+	Text     string    `json:"text,omitempty"`
+	ImageURL *ImageURL `json:"image_url,omitempty"`
+}
+
+type ImageURL struct {
+	URL string `json:"url"`
+}
+
+type VisionChatMessage struct {
+	Role    string           `json:"role"`
+	Content []MessageContent `json:"content"`
+}
+
+type VisionChatRequest struct {
+	Model    string              `json:"model"`
+	Messages []VisionChatMessage `json:"messages"`
+}
 
 type LLMClient struct {
 	config     *Config
@@ -139,12 +161,80 @@ func (c *LLMClient) GenerateTitleFromContent(content string) ([]string, error) {
 func (c *LLMClient) ExtractContent(imageData []byte) (string, error) {
 	// For now, this is a placeholder as image processing requires base64 encoding
 	// and specific message format for vision models
-	response, err := c.sendChatRequest(c.config.LLM.Models.ContentExtraction, c.config.LLM.Prompts.ContentExtraction)
+	response, err := c.sendOCRRequest(c.config.LLM.Models.ContentExtraction, c.config.LLM.Prompts.ContentExtraction, imageData)
 	if err != nil {
 		return "", fmt.Errorf("failed to extract content: %w", err)
 	}
 
 	return response, nil
+}
+
+func (c *LLMClient) sendOCRRequest(model, prompt string, imageData []byte) (string, error) {
+	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
+
+	// Prepare base64 image and data URL (no mime type, as in your example)
+	base64Image := base64.StdEncoding.EncodeToString(imageData)
+	dataURL := "data:;base64," + base64Image
+
+	chatReq := VisionChatRequest{
+		Model: model,
+		Messages: []VisionChatMessage{
+			{
+				Role: "user",
+				Content: []MessageContent{
+					{
+						Type: "text",
+						Text: prompt,
+					},
+					{
+						Type: "image_url",
+						ImageURL: &ImageURL{
+							URL: dataURL,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	reqBody, err := json.Marshal(chatReq)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(reqBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var chatResp ChatResponse
+	if err := json.Unmarshal(body, &chatResp); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf("no choices in response")
+	}
+
+	return chatResp.Choices[0].Message.Content, nil
 }
 
 func (c *LLMClient) sendChatRequest(model, prompt string) (string, error) {

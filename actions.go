@@ -145,10 +145,22 @@ func (a *SetContentAction) Execute(executor *ActionExecutor) error {
 
 	// Process documents
 	return executor.processOCRGeneration(filteredDocs, func(doc Document, newContent string, newTitle string) bool {
+		previewContent := newContent
+		if len(newContent) > 50 {
+			previewContent = newContent[:50] + "..."
+		}
+
 		// Ask for user confirmation
 		confirmed, err := pterm.DefaultInteractiveConfirm.
 			WithDefaultValue(false).
-			WithDefaultText(fmt.Sprintf("Do you want to change the content of document '%s' to '%v' chars (title could be '%s')?\nUrl: %s\nChange content?", doc.Title, len(newContent), newTitle, executor.config.CreateUrl(doc.ID))).Show()
+			WithDefaultText(fmt.Sprintf(
+				"Do you want to change the content of document '%s' to '%v' chars (title could be '%s')?\n"+
+					"Url: %s\n"+
+					"First 50 chars: %s\n"+
+					"Change content?",
+				doc.Title, len(newContent), newTitle, executor.config.CreateUrl(doc.ID), previewContent,
+			)).
+			Show()
 		if err != nil {
 			return false
 		}
@@ -168,13 +180,35 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 	pterm.Info.Println("Starting OCR generation process...")
 
 	for _, doc := range documents {
-
 		// Download document pdf
 		pdfBytes, err := e.paperlessClient.DownloadDocument(doc.ID)
+		if err != nil {
+			pterm.Warning.Printf("Failed to download PDF for document %d: %v\n", doc.ID, err)
+			stats.errors++
+			stats.processed++
+			stats.renderProgressChart()
+			continue
+		}
 
+		// Convert first page to JPEG
 		jpegData, err := e.config.RenderPageToJpg(pdfBytes, 0)
+		if err != nil {
+			pterm.Warning.Printf("Failed to render page to JPG for document %d: %v\n", doc.ID, err)
+			stats.errors++
+			stats.processed++
+			stats.renderProgressChart()
+			continue
+		}
 
+		// Extract content using LLM
 		newContent, err := e.llmClient.ExtractContent(jpegData)
+		if err != nil {
+			pterm.Warning.Printf("Failed to extract content for document %d: %v\n", doc.ID, err)
+			stats.errors++
+			stats.processed++
+			stats.renderProgressChart()
+			continue
+		}
 
 		// Generate new titles using LLM
 		titles, err := e.llmClient.GenerateTitleFromContent(newContent)
@@ -194,15 +228,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 			continue
 		}
 
-		// Use the first generated title
 		newTitle := titles[0]
-		if newTitle == "RESCAN DOCUMENT" {
-			pterm.Warning.Printf("Document %d needs rescanning, skipping\n", doc.ID)
-			stats.errors++
-			stats.processed++
-			stats.renderProgressChart()
-			continue
-		}
 
 		if userCallback != nil {
 			pterm.Info.Println("Start User Interaction")
