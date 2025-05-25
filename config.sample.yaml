@@ -1,0 +1,60 @@
+# Paperless NGX Configuration
+paperless:
+  api:
+    base_url: "http://192.168.3.10:8000"
+    host_header: "my-domain.com"
+    token: "00000000000000000000000000000000"
+    page_size: 100000 # number of documents to fetch in one API call
+  web_url: "https://my-domain.com"
+
+# LLM Service Configuration
+llm:
+  api:
+    base_url: "http://192.168.3.10:9876"
+    endpoint: "/v1/chat/completions"
+  models:
+    title_generation: "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4"
+    content_extraction: "google/gemma-3-27b-it"
+  prompts:
+    title_generation: |
+      Return possible titles for this document, the titles should be describe the content of this document.
+
+      - Keep the language of the original document.
+      - Return this result as a json array. 
+      - You must respond with only valid JSON. 
+      - No markdown, only json.
+      - In the case the document seems to be not correctly interpreted, return "RESCAN DOCUMENT".
+
+      --- document ocr content (first {truncate_chars} chars) ---
+
+      {content}
+    content_extraction: |
+      You job is to extract text from the images I provide you. Extract every bit of the text in the image.
+      Don't say anything just do your job. Text should be same as in the images.
+
+      If the pages do not contain any text, just return "Blank page" or "Image with no text" or "Image of <image description>".
+
+      Things to avoid:
+      - Don't miss anything to extract from the images
+
+      Things to include:
+      - Include everything, even anything inside [], (), {} or anything.
+      - Include any repetitive things like "..." or anything
+      - If you think there is any mistake in image just include it too
+
+# Document Filtering Configuration
+filters:
+  title:
+    pattern_type: "regex" # Using regex patterns
+    pattern:
+      - "^SCN_.*$" # Starts with SCN_
+      - ".*BRN.*$" # Contains BRN
+  content:
+    pattern_type: "regex" # Using regex patterns
+    pattern:
+      - "^$" # Matches empty content
+
+# Processing Configuration
+processing:
+  title_generation:
+    truncate_characters_of_content: 2000 
