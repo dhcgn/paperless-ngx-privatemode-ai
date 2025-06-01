@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	//go:embed test_assets\small_demo.pdf
+	//go:embed test_assets/small_demo.pdf
 	samplePDF []byte
 
-	//go:embed test_assets\small_demo.pdf.jpg
+	//go:embed test_assets/small_demo.pdf.jpg
 	expectedJpg []byte
 )
 

@@ -1,0 +1,62 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run Integration Tests",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "test",
+                "-tags=integration",
+                "-v",
+                "-timeout=300s",
+                "./..."
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "Run Specific Integration Test",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "test",
+                "-tags=integration",
+                "-v",
+                "-timeout=300s",
+                "-run=${input:testName}",
+                "./..."
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testName",
+            "description": "Test function name (e.g., TestLLMClient_GenerateTitleFromContent)",
+            "default": "TestLLMClient_GenerateTitleFromContent",
+            "type": "promptString"
+        }
+    ]
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
+)
+
+var (
+	//go:embed llm_assets/schema_title_generation.json
+	schemaTitleGeneration []byte
 )
 
 // Vision types for OCR chat request
@@ -43,8 +49,29 @@ type ChatMessage struct {
 }
 
 type ChatRequest struct {
-	Model    string        `json:"model"`
-	Messages []ChatMessage `json:"messages"`
+	Model          string          `json:"model"`
+	Messages       []ChatMessage   `json:"messages"`
+	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
+}
+
+type ResponseFormat struct {
+	Type       string     `json:"type"`
+	JSONSchema JSONSchema `json:"json_schema"`
+}
+
+type JSONSchema struct {
+	Name   string      `json:"name"`
+	Schema interface{} `json:"schema"`
+	Strict bool        `json:"strict"`
+}
+
+type CaptionResponse struct {
+	Captions []Caption `json:"captions"`
+}
+
+type Caption struct {
+	Caption string  `json:"caption"`
+	Score   float64 `json:"score"`
 }
 
 type ChatChoice struct {
@@ -125,37 +152,52 @@ func (c *LLMClient) CheckConnection() error {
 	return nil
 }
 
-func (c *LLMClient) GenerateTitleFromContent(content string) ([]string, error) {
+func (c *LLMClient) GenerateTitleFromContent(content string) ([]Caption, error) {
 	if content == "" {
-		return []string{
-			"EMPTY_CONTENT",
+		return []Caption{
+			{Caption: "EMPTY_CONTENT", Score: 0.0},
 		}, nil
 	}
 
-	// Validate content length	// Truncate content if configured
+	// Truncate content if configured
 	if c.config.Processing.TitleGeneration.TruncateCharactersOfContent > 0 &&
 		len(content) > c.config.Processing.TitleGeneration.TruncateCharactersOfContent {
 		content = content[:c.config.Processing.TitleGeneration.TruncateCharactersOfContent]
 	}
 
-	// Replace placeholder in prompt
-	prompt := strings.ReplaceAll(c.config.LLM.Prompts.TitleGeneration, "{content}", content)
-	prompt = strings.ReplaceAll(prompt, "{truncate_chars}",
-		fmt.Sprintf("%d", c.config.Processing.TitleGeneration.TruncateCharactersOfContent))
+	// Create the structured prompt for title generation
+	prompt := fmt.Sprintf(`You are an AI designed to generate descriptive titles for document content.
+Please provide a list of possible titles, each with a relevance score between 0 and 1 that indicates how well the title describes the content.
+Your response must be a JSON object matching the following schema:
 
-	response, err := c.sendChatRequest(c.config.LLM.Models.TitleGeneration, prompt)
+- Include at least 3 titles.
+- Do not include any extra information or explanation.
+- Keep the language of the original document.
+
+Task:
+Given the content, return your output in the exact JSON structure as described above.
+
+Content:
+
+%s`, content)
+
+	response, err := c.sendStructuredChatRequest(c.config.LLM.Models.TitleGeneration, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate title: %w", err)
 	}
 
-	// Parse JSON response to extract titles
-	var titles []string
-	if err := json.Unmarshal([]byte(response), &titles); err != nil {
-		// If JSON parsing fails, return the raw response as a single title
-		return []string{response}, nil
+	// Parse the structured response
+	var captionResp CaptionResponse
+	if err := json.Unmarshal([]byte(response), &captionResp); err != nil {
+		// If JSON parsing fails, return the raw response as a single caption
+		return []Caption{{Caption: response, Score: 0.0}}, nil
 	}
 
-	return titles, nil
+	if len(captionResp.Captions) == 0 {
+		return []Caption{{Caption: response, Score: 0.0}}, nil
+	}
+
+	return captionResp.Captions, nil
 }
 
 func (c *LLMClient) ExtractContent(imageData []byte) (string, error) {
@@ -246,6 +288,79 @@ func (c *LLMClient) sendChatRequest(model, prompt string) (string, error) {
 			{
 				Role:    "user",
 				Content: prompt,
+			},
+		},
+	}
+
+	reqBody, err := json.Marshal(chatReq)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(reqBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var chatResp ChatResponse
+	if err := json.Unmarshal(body, &chatResp); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf("no choices in response")
+	}
+
+	return chatResp.Choices[0].Message.Content, nil
+}
+
+func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, error) {
+	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
+
+	// Parse the embedded schema
+	var schema interface{}
+	if err := json.Unmarshal(schemaTitleGeneration, &schema); err != nil {
+		return "", fmt.Errorf("failed to parse embedded schema: %w", err)
+	}
+
+	// Extract the schema content from the parsed JSON
+	schemaMap, ok := schema.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("invalid schema format")
+	}
+
+	chatReq := ChatRequest{
+		Model: model,
+		Messages: []ChatMessage{
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+		ResponseFormat: &ResponseFormat{
+			Type: "json_schema",
+			JSONSchema: JSONSchema{
+				Name:   schemaMap["name"].(string),
+				Schema: schemaMap["schema"],
+				Strict: schemaMap["strict"].(bool),
 			},
 		},
 	}

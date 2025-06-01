@@ -211,7 +211,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 		}
 
 		// Generate new titles using LLM
-		titles, err := e.llmClient.GenerateTitleFromContent(newContent)
+		captions, err := e.llmClient.GenerateTitleFromContent(newContent)
 		if err != nil {
 			pterm.Warning.Printf("Failed to generate title for document %d: %v\n", doc.ID, err)
 			stats.errors++
@@ -220,7 +220,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 			continue
 		}
 
-		if len(titles) == 0 {
+		if len(captions) == 0 {
 			pterm.Warning.Printf("No titles generated for document %d\n", doc.ID)
 			stats.errors++
 			stats.processed++
@@ -228,7 +228,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 			continue
 		}
 
-		newTitle := titles[0]
+		newTitle := captions[0].Caption
 
 		if userCallback != nil {
 			pterm.Info.Println("Start User Interaction")
@@ -337,7 +337,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 
 	for _, doc := range documents {
 		// Generate new titles using LLM
-		titles, err := e.llmClient.GenerateTitleFromContent(doc.Content)
+		captions, err := e.llmClient.GenerateTitleFromContent(doc.Content)
 		if err != nil {
 			pterm.Warning.Printf("Failed to generate title for document %d: %v\n", doc.ID, err)
 			stats.errors++
@@ -346,7 +346,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 			continue
 		}
 
-		if len(titles) == 0 {
+		if len(captions) == 0 {
 			pterm.Warning.Printf("No titles generated for document %d\n", doc.ID)
 			stats.errors++
 			stats.processed++
@@ -355,7 +355,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 		}
 
 		// Use the first generated title
-		newTitle := titles[0]
+		newTitle := captions[0].Caption
 		if newTitle == "RESCAN DOCUMENT" {
 			pterm.Warning.Printf("Document %d needs rescanning, skipping\n", doc.ID)
 			stats.errors++
