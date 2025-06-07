@@ -1,0 +1,33 @@
+# Test configuration for Linux
+paperless:
+  api:
+    base_url: "http://test:8000"
+    token: "test"
+    page_size: 100
+
+llm:
+  api:
+    base_url: "http://test:9876"
+    endpoint: "/v1/chat/completions"
+  models:
+    title_generation: "test-model"
+    content_extraction: "test-model"
+  prompts:
+    title_generation: "test prompt"
+    content_extraction: "test prompt"
+
+filters:
+  title:
+    pattern_type: "regex"
+    pattern: []
+  content:
+    pattern_type: "regex"
+    pattern: []
+
+processing:
+  title_generation:
+    truncate_characters_of_content: 2000
+
+tools:
+  imagemagick-for-windows:
+    # Empty on Linux - should auto-detect system ImageMagick

@@ -6,7 +6,29 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 )
+
+// getImageMagickCommand returns the appropriate ImageMagick command based on the OS
+func (c *Config) getImageMagickCommand() (string, error) {
+	if runtime.GOOS == "windows" {
+		// On Windows, use the configured path for imagemagick-for-windows
+		if c.Tools.ImagemagickForWindows.FullPath != "" {
+			return c.Tools.ImagemagickForWindows.FullPath, nil
+		}
+		return "", fmt.Errorf("imagemagick-for-windows.fullpath not set in config for Windows")
+	} else {
+		// On Linux/Unix, check for system-installed ImageMagick
+		if magickPath, err := exec.LookPath("magick"); err == nil {
+			return magickPath, nil
+		}
+		// Fallback to older ImageMagick command name
+		if convertPath, err := exec.LookPath("convert"); err == nil {
+			return convertPath, nil
+		}
+		return "", fmt.Errorf("ImageMagick not found in system PATH. Please install ImageMagick")
+	}
+}
 
 // RenderPageToJpg converts a specific page of a PDF document to a JPEG image using ImageMagick.
 func (c *Config) RenderPageToJpg(pdfBytes []byte, page int) ([]byte, error) {
@@ -35,9 +57,9 @@ func (c *Config) RenderPageToJpg(pdfBytes []byte, page int) ([]byte, error) {
 	// 3. Build ImageMagick command
 	// ImageMagick uses 0-based page index: input.pdf[0] for first page
 	pdfInputWithPage := fmt.Sprintf("%s[%d]", pdfFile.Name(), page)
-	magickPath := c.Tools.Imagemagick.FullPath
-	if magickPath == "" {
-		return nil, fmt.Errorf("imagemagick fullpath not set in config")
+	magickPath, err := c.getImageMagickCommand()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ImageMagick command: %w", err)
 	}
 
 	cmd := exec.Command(magickPath, pdfInputWithPage, jpgFilePath)
