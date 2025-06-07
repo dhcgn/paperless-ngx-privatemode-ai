@@ -19,7 +19,15 @@ If this approach proves valuable for myself, I plan to expand the tool to suppor
 
 ## GUI
 
-![Screenshot](docs/screenshot.png)
+### Main Menu
+The application starts with an interactive menu where you can choose different actions:
+
+![Screenshot](docs/screenshot_startup.png)
+
+### Title Selection Dialog
+When generating titles, the LLM provides multiple suggestions and you can interactively select the best one:
+
+![Title Selection Dialog](docs/screenshot_title_select.png)
 
 ## Run
 
