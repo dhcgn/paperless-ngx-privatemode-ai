@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
+	"runtime"
 
 	"gopkg.in/yaml.v3"
 )
@@ -16,7 +18,7 @@ type Config struct {
 	Tools      ToolsConfig      `yaml:"tools"`
 }
 type ToolsConfig struct {
-	Imagemagick ImagemagickConfig `yaml:"imagemagick"`
+	ImagemagickForWindows ImagemagickConfig `yaml:"imagemagick-for-windows"`
 }
 
 type ImagemagickConfig struct {
@@ -110,13 +112,34 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate Imagemagick path if set
-	if c.Tools.Imagemagick.FullPath != "" {
-		if _, err := os.Stat(c.Tools.Imagemagick.FullPath); err != nil {
-			return fmt.Errorf("imagemagick.fullpath does not exist or is not accessible: %w", err)
-		}
+	// Validate ImageMagick availability
+	if err := c.validateImageMagick(); err != nil {
+		return fmt.Errorf("imagemagick validation failed: %w", err)
 	}
 
+	return nil
+}
+
+// validateImageMagick validates ImageMagick availability based on the operating system
+func (c *Config) validateImageMagick() error {
+	if runtime.GOOS == "windows" {
+		// On Windows, validate the specific path for imagemagick-for-windows
+		if c.Tools.ImagemagickForWindows.FullPath != "" {
+			if _, err := os.Stat(c.Tools.ImagemagickForWindows.FullPath); err != nil {
+				return fmt.Errorf("imagemagick-for-windows.fullpath does not exist or is not accessible: %w", err)
+			}
+		}
+	} else {
+		// On Linux/Unix, check if ImageMagick is installed in the system
+		_, err := exec.LookPath("magick")
+		if err != nil {
+			// Fallback to older ImageMagick command name
+			_, err = exec.LookPath("convert")
+			if err != nil {
+				return fmt.Errorf("ImageMagick not found in system PATH. Please install ImageMagick")
+			}
+		}
+	}
 	return nil
 }
 

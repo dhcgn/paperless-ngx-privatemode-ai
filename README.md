@@ -31,8 +31,8 @@ paperless-ngx-privatemode-ai.exe --config config.yaml
 
 See [config.yaml](config.yaml) for example configuration.
 
-You need to install imagemagick on your system an set the path in this configuration file.
-I'm not happy with this solution, but it works for now. I was not able to find a native Go library to convert pdf to images.
+You need to install ImageMagick on your system. On Windows, set the path in the configuration file under `tools.imagemagick-for-windows.fullpath`. On Linux, ensure ImageMagick is installed system-wide (it will be detected automatically).
+I'm not happy with this solution, but it works for now. I was not able to find a native Go library to convert PDF to images.
 
 ### Dialog
 

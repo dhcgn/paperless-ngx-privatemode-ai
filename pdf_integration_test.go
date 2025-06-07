@@ -5,16 +5,15 @@ package main
 
 import (
 	_ "embed"
-	"os"
 	"reflect"
 	"testing"
 )
 
 var (
-	//go:embed test_assets\small_demo.pdf
+	//go:embed test_assets/small_demo.pdf
 	samplePDF []byte
 
-	//go:embed test_assets\small_demo.pdf.jpg
+	//go:embed test_assets/small_demo.pdf.jpg
 	expectedJpg []byte
 )
 
@@ -34,8 +33,8 @@ func TestConfig_RenderPageToJpg(t *testing.T) {
 			name: "Valid PDF with one page",
 			c: &Config{
 				Tools: ToolsConfig{
-					Imagemagick: ImagemagickConfig{
-						FullPath: `C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe`, // Assuming 'magick' is in PATH
+					ImagemagickForWindows: ImagemagickConfig{
+						FullPath: `C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe`, // For Windows testing
 					},
 				},
 			},
@@ -55,7 +54,7 @@ func TestConfig_RenderPageToJpg(t *testing.T) {
 				return
 			}
 
-			os.WriteFile(`C:\dev\paperless-ngx-privatemode-ai\test_assets\small_demo.pdf.jpg`, got, 0644)
+			// os.WriteFile(`C:\dev\paperless-ngx-privatemode-ai\test_assets\small_demo.pdf.jpg`, got, 0644)
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Config.RenderPageToJpg() = %v, want %v", got, tt.want)

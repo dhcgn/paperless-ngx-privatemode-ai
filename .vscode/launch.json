@@ -9,7 +9,7 @@
             "program": "${workspaceFolder}",
             "args": [
                 "--config",
-                ".\\config.production.yaml"
+                "config.production.yaml"
             ],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

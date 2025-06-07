@@ -1,3 +1,6 @@
 {
-    "chat.promptFiles": true
+    "chat.promptFiles": true,
+    "go.testFlags": ["-tags=integration"],
+    "go.buildTags": "integration",
+    "go.testTimeout": "300s"
 }
