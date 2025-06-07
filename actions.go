@@ -80,16 +80,41 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 	}
 
 	// Process documents
-	return executor.processDocumentsForTitleGeneration(filteredDocs, func(doc Document, newTitle string) bool {
-		// Ask for user confirmation
-		confirmed, err := pterm.DefaultInteractiveConfirm.
-			WithDefaultValue(false).
-			WithDefaultText(fmt.Sprintf("Do you want to change the title of document '%s' to '%s'?\nUrl: %s\nChange title?", doc.Title, newTitle, executor.config.CreateUrl(doc.ID))).
-			Show()
-		if err != nil {
-			return false
+	return executor.processDocumentsForTitleGeneration(filteredDocs, func(doc Document, captions []Caption) (string, bool) {
+		// Prepare options for user selection
+		options := make([]string, 0, len(captions)+1)
+
+		// Add each caption with its score
+		for i, caption := range captions {
+			options = append(options, fmt.Sprintf("%d. %s (Score: %.2f)", i+1, caption.Caption, caption.Score))
 		}
-		return confirmed
+
+		// Add option to skip
+		options = append(options, "Skip this document")
+
+		// Show interactive select
+		selectedOption, err := pterm.DefaultInteractiveSelect.
+			WithOptions(options).
+			WithDefaultOption("Skip this document").
+			Show(fmt.Sprintf("Choose a new title for document '%s':\nUrl: %s", doc.Title, executor.config.CreateUrl(doc.ID)))
+
+		if err != nil {
+			return "", false
+		}
+
+		// Check if user chose to skip
+		if selectedOption == "Skip this document" {
+			return "", false
+		}
+
+		// Find the selected caption
+		for i, option := range options[:len(captions)] {
+			if option == selectedOption {
+				return captions[i].Caption, true
+			}
+		}
+
+		return "", false
 	})
 }
 
@@ -324,7 +349,7 @@ func (stats *ProgressStats) renderFinalSummary(totalDocuments int) {
 	pterm.DefaultBarChart.WithHorizontal().WithBars(bars).WithShowValue().Render()
 }
 
-func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document, userCallback func(Document, string) bool) error {
+func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document, userCallback func(Document, []Caption) (string, bool)) error {
 	stats := &ProgressStats{
 		processed: 0,
 		success:   0,
@@ -354,9 +379,16 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 			continue
 		}
 
-		// Use the first generated title
-		newTitle := captions[0].Caption
-		if newTitle == "RESCAN DOCUMENT" {
+		// Check if any captions need rescanning
+		needsRescan := false
+		for _, caption := range captions {
+			if caption.Caption == "RESCAN DOCUMENT" {
+				needsRescan = true
+				break
+			}
+		}
+
+		if needsRescan {
 			pterm.Warning.Printf("Document %d needs rescanning, skipping\n", doc.ID)
 			stats.errors++
 			stats.processed++
@@ -364,9 +396,13 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 			continue
 		}
 
+		var selectedTitle string
+		var userConfirmed bool
+
 		if userCallback != nil {
 			pterm.Info.Println("Start User Interaction")
-			if !userCallback(doc, newTitle) {
+			selectedTitle, userConfirmed = userCallback(doc, captions)
+			if !userConfirmed {
 				pterm.Warning.Println("User cancelled this operation")
 				stats.skipped++
 				stats.processed++
@@ -374,11 +410,15 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 				continue
 			}
 			pterm.Info.Println("End of User Interaction")
+		} else {
+			// Use the first generated title if no callback
+			selectedTitle = captions[0].Caption
+			userConfirmed = true
 		}
 
 		// Update document title
 		updates := map[string]interface{}{
-			"title": newTitle,
+			"title": selectedTitle,
 		}
 
 		if err := e.paperlessClient.UpdateDocument(doc.ID, updates); err != nil {
