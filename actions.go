@@ -61,7 +61,7 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 	// Display bar chart with document counts
 	bars := []pterm.Bar{
 		{Label: "All", Value: len(documents), Style: pterm.NewStyle(pterm.FgGray)},
-		{Label: "Filtered", Value: len(filteredDocs), Style: pterm.NewStyle(pterm.FgGreen)},
+		{Label: "Found", Value: len(filteredDocs), Style: pterm.NewStyle(pterm.FgGreen)},
 	}
 	pterm.DefaultBarChart.WithHorizontal().WithBars(bars).WithShowValue().Render()
 
@@ -150,7 +150,7 @@ func (a *SetContentAction) Execute(executor *ActionExecutor) error {
 	// Display bar chart with document counts
 	bars := []pterm.Bar{
 		{Label: "All", Value: len(documents), Style: pterm.NewStyle(pterm.FgGray)},
-		{Label: "Filtered", Value: len(filteredDocs), Style: pterm.NewStyle(pterm.FgGreen)},
+		{Label: "Found", Value: len(filteredDocs), Style: pterm.NewStyle(pterm.FgGreen)},
 	}
 	pterm.DefaultBarChart.WithHorizontal().WithBars(bars).WithShowValue().Render()
 
