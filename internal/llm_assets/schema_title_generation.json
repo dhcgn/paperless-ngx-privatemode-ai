@@ -3,6 +3,10 @@
   "schema": {
     "type": "object",
     "properties": {
+      "summarize": {
+        "type": "string",
+        "description": "A comprehensive and detailed summary of the document content including key entities, dates, amounts, document type, purpose, and any other relevant contextual information that helps understand what the document is about and why specific titles would be appropriate."
+      },
       "captions": {
         "type": "array",
         "description": "A list of possible captions with their relevance scores.",
@@ -27,6 +31,7 @@
       }
     },
     "required": [
+      "summarize",
       "captions"
     ],
     "additionalProperties": false

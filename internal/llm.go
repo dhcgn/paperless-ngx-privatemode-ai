@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"bytes"
@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 )
 
-var (
-	//go:embed llm_assets/schema_title_generation.json
-	schemaTitleGeneration []byte
-)
+//go:embed llm_assets/schema_title_generation.json
+var schema_title_generation []byte
 
 // Vision types for OCR chat request
 type MessageContent struct {
@@ -39,7 +39,7 @@ type VisionChatRequest struct {
 }
 
 type LLMClient struct {
-	config     *Config
+	config     *config.Config
 	httpClient *http.Client
 }
 
@@ -66,7 +66,8 @@ type JSONSchema struct {
 }
 
 type CaptionResponse struct {
-	Captions []Caption `json:"captions"`
+	Summarize string    `json:"summarize"`
+	Captions  []Caption `json:"captions"`
 }
 
 type Caption struct {
@@ -90,11 +91,17 @@ type ModelsResponse struct {
 	Data []ModelInfo `json:"data"`
 }
 
-func NewLLMClient(config *Config) *LLMClient {
+func NewLLMClient(config *config.Config) *LLMClient {
+	// Use configured timeout or default to 300 seconds (5 minutes)
+	timeout := config.LLM.API.Timeout
+	if timeout <= 0 {
+		timeout = 300 // Default to 5 minutes
+	}
+
 	return &LLMClient{
 		config: config,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: time.Duration(timeout) * time.Second,
 		},
 	}
 }
@@ -137,7 +144,7 @@ func (c *LLMClient) CheckConnection() error {
 		if model.ID == c.config.LLM.Models.TitleGeneration {
 			titleModelAvailable = true
 		}
-		if model.ID == c.config.LLM.Models.ContentExtraction {
+		if model.ID == c.config.LLM.Models.OCR {
 			contentModelAvailable = true
 		}
 	}
@@ -146,16 +153,19 @@ func (c *LLMClient) CheckConnection() error {
 		return fmt.Errorf("title generation model '%s' not available", c.config.LLM.Models.TitleGeneration)
 	}
 	if !contentModelAvailable {
-		return fmt.Errorf("content extraction model '%s' not available", c.config.LLM.Models.ContentExtraction)
+		return fmt.Errorf("content extraction model '%s' not available", c.config.LLM.Models.OCR)
 	}
 
 	return nil
 }
 
-func (c *LLMClient) GenerateTitleFromContent(content string) ([]Caption, error) {
+func (c *LLMClient) GenerateTitleFromContent(content string) (CaptionResponse, error) {
 	if content == "" {
-		return []Caption{
-			{Caption: "EMPTY_CONTENT", Score: 0.0},
+		return CaptionResponse{
+			Summarize: "Empty document content",
+			Captions: []Caption{
+				{Caption: "EMPTY_CONTENT", Score: 0.0},
+			},
 		}, nil
 	}
 
@@ -183,27 +193,36 @@ Content:
 
 	response, err := c.sendStructuredChatRequest(c.config.LLM.Models.TitleGeneration, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate title: %w", err)
+		return CaptionResponse{}, fmt.Errorf("failed to generate title: %w", err)
 	}
 
 	// Parse the structured response
 	var captionResp CaptionResponse
 	if err := json.Unmarshal([]byte(response), &captionResp); err != nil {
 		// If JSON parsing fails, return the raw response as a single caption
-		return []Caption{{Caption: response, Score: 0.0}}, nil
+		return CaptionResponse{
+			Summarize: "Failed to parse LLM response",
+			Captions:  []Caption{{Caption: response, Score: 0.0}},
+		}, nil
 	}
 
 	if len(captionResp.Captions) == 0 {
-		return []Caption{{Caption: response, Score: 0.0}}, nil
+		return CaptionResponse{
+			Summarize: captionResp.Summarize,
+			Captions:  []Caption{{Caption: response, Score: 0.0}},
+		}, nil
 	}
 
-	return captionResp.Captions, nil
+	return captionResp, nil
 }
 
-func (c *LLMClient) ExtractContent(imageData []byte) (string, error) {
-	// For now, this is a placeholder as image processing requires base64 encoding
-	// and specific message format for vision models
-	response, err := c.sendOCRRequest(c.config.LLM.Models.ContentExtraction, c.config.LLM.Prompts.ContentExtraction, imageData)
+func (c *LLMClient) MakeOcr(imageData []byte) (string, error) {
+	// check if image data is jpg
+	if len(imageData) < 2 || (imageData[0] != 0xFF || imageData[1] != 0xD8) {
+		return "", fmt.Errorf("invalid image data: not a valid JPEG")
+	}
+
+	response, err := c.sendOCRRequest(c.config.LLM.Models.OCR, c.config.LLM.Prompts.OCR, imageData)
 	if err != nil {
 		return "", fmt.Errorf("failed to extract content: %w", err)
 	}
@@ -335,10 +354,9 @@ func (c *LLMClient) sendChatRequest(model, prompt string) (string, error) {
 func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, error) {
 	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
 
-	// Parse the embedded schema
 	var schema interface{}
-	if err := json.Unmarshal(schemaTitleGeneration, &schema); err != nil {
-		return "", fmt.Errorf("failed to parse embedded schema: %w", err)
+	if err := json.Unmarshal(schema_title_generation, &schema); err != nil {
+		return "", fmt.Errorf("failed to parse schema: %w", err)
 	}
 
 	// Extract the schema content from the parsed JSON

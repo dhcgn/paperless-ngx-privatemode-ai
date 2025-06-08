@@ -1,4 +1,4 @@
-package main
+package internal
 
 // renderPageToJpg converts a specific page of a PDF document to a JPEG image.
 // It takes the PDF bytes and the page number as input, and returns the JPEG image bytes or an error.
@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 )
 
 // getImageMagickCommand returns the appropriate ImageMagick command based on the OS
-func (c *Config) getImageMagickCommand() (string, error) {
+func getImageMagickCommand(c *config.Config) (string, error) {
 	if runtime.GOOS == "windows" {
 		// On Windows, use the configured path for imagemagick-for-windows
 		if c.Tools.ImagemagickForWindows.FullPath != "" {
@@ -31,7 +33,7 @@ func (c *Config) getImageMagickCommand() (string, error) {
 }
 
 // RenderPageToJpg converts a specific page of a PDF document to a JPEG image using ImageMagick.
-func (c *Config) RenderPageToJpg(pdfBytes []byte, page int) ([]byte, error) {
+func RenderPageToJpg(c *config.Config, pdfBytes []byte, page int) ([]byte, error) {
 	// 1. Write PDF bytes to a temporary file
 	pdfFile, err := os.CreateTemp("", "input-*.pdf")
 	if err != nil {
@@ -57,7 +59,7 @@ func (c *Config) RenderPageToJpg(pdfBytes []byte, page int) ([]byte, error) {
 	// 3. Build ImageMagick command
 	// ImageMagick uses 0-based page index: input.pdf[0] for first page
 	pdfInputWithPage := fmt.Sprintf("%s[%d]", pdfFile.Name(), page)
-	magickPath, err := c.getImageMagickCommand()
+	magickPath, err := getImageMagickCommand(c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ImageMagick command: %w", err)
 	}

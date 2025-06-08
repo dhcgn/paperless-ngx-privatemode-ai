@@ -1,46 +1,108 @@
 # Paperless NGX Configuration
 paperless:
   api:
-    base_url: "http://192.168.3.10:8000"
+    base_url: "http://192.168.1.1:8000"
     host_header: "my-domain.com"
     token: "00000000000000000000000000000000"
     page_size: 100000 # number of documents to fetch in one API call
   web_url: "https://my-domain.com"
 
-# LLM Service Configuration
+## LLM Service Configuration
 llm:
   api:
-    base_url: "http://192.168.3.10:9876"
+    # docker run -p 8080:8080 --rm ghcr.io/edgelesssys/privatemode/privatemode-proxy:latest --apiKey $PRIVATE_MODE_API_KEY
+    base_url: "http://localhost:8080"
     endpoint: "/v1/chat/completions"
+    timeout: 120 # Timeout in seconds for LLM API requests (5 minutes)
   models:
     title_generation: "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4"
-    content_extraction: "google/gemma-3-27b-it"
+    ocr: "google/gemma-3-27b-it"  
   prompts:
-    title_generation: |
-      Return possible titles for this document, the titles should be describe the content of this document.
+    # Change the mentioned language to your preferred language if needed
+    title_generation: |    
+      Analyze the document content and generate a comprehensive summary and multiple title suggestions.
 
-      - Keep the language of the original document.
-      - Return this result as a json array. 
-      - You must respond with only valid JSON. 
-      - No markdown, only json.
-      - In the case the document seems to be not correctly interpreted, return "RESCAN DOCUMENT".
+      Preferd language: German (Deutsch)
+
+      CRITICAL REQUIREMENTS:
+      - You MUST respond with ONLY valid JSON matching this exact structure
+      - NO markdown formatting, explanations, or text outside the JSON
+      - Keep the language of the original document for titles
+      - Generate 2-5 diverse title options with varying specificity levels
+      - Only these languages are allowed: German or English!
+      - If language cannot be safely determined, use **German (Deutsch)**! This is critical for user experience, to use this language if you are not sure!
+
+      EXPECTED JSON FORMAT:
+      {
+        "summarize": "detailed summary here",
+        "captions": [
+          {"caption": "title text", "score": 0.85},
+          {"caption": "another title", "score": 0.72}
+        ]
+      }
+
+      SUMMARY REQUIREMENTS:
+      - Include document type (invoice, contract, receipt, letter, etc.)
+      - Mention key entities (companies, people, products, services)
+      - Include important dates, amounts, or reference numbers
+      - Describe the document's purpose and context
+      - Provide enough detail to justify the suggested titles
+
+      TITLE GENERATION GUIDELINES:
+      - Create titles ranging from general to specific
+      - Include at least one title with key identifying information (dates, amounts, companies)
+      - Include at least one descriptive title focusing on document type/purpose
+      - Consider titles that would help with future searching and organization
+      - Avoid generic titles like "Document" or "Scan"
+
+      SCORING CRITERIA (0.0 to 1.0):
+      - 0.9-1.0: Perfect match with key document identifiers and purpose
+      - 0.7-0.89: Good descriptive title with relevant details
+      - 0.5-0.69: Adequate title covering main topic
+      - 0.3-0.49: Generic but relevant title
+      - 0.0-0.29: Vague or poorly matching title
 
       --- document ocr content (first {truncate_chars} chars) ---
+      
+      {content}    
+    # Change the mentioned language to your preferred language if needed
+    ocr: |
+      You are an advanced OCR and image analysis system. Your task is to extract ALL text content from the provided image and describe what you see.
 
-      {content}
-    content_extraction: |
-      You job is to extract text from the images I provide you. Extract every bit of the text in the image.
-      Don't say anything just do your job. Text should be same as in the images.
+      Preferd language: German (Deutsch)
 
-      If the pages do not contain any text, just return "Blank page" or "Image with no text" or "Image of <image description>".
+      LANGUAGE REQUIREMENTS:
+      - Respond in the same language as the document content
+      - Preserve original language formatting and special characters
+      - Only these languages are allowed: German or English!
+      - If language cannot be safely determined, use **German (Deutsch)**! This is critical for user experience, to use this language if you are not sure!
 
-      Things to avoid:
-      - Don't miss anything to extract from the images
+      OCR EXTRACTION REQUIREMENTS:
+      - Extract EVERY piece of text visible in the image
+      - Maintain original formatting, spacing, and structure
+      - Include text in any orientation (rotated, sideways, upside down)
+      - Extract text from tables, forms, headers, footers, stamps, watermarks
+      - Include handwritten text if legible
+      - Preserve special characters: [], (), {}, quotes, symbols, punctuation
+      - Include repetitive elements like "...", "---", etc.
+      - Extract partial or unclear text with [unclear: approximate text] notation
 
-      Things to include:
-      - Include everything, even anything inside [], (), {} or anything.
-      - Include any repetitive things like "..." or anything
-      - If you think there is any mistake in image just include it too
+      IMAGE DESCRIPTION REQUIREMENTS:
+      - Start with document type identification (invoice, receipt, letter, form, etc.)
+      - Describe layout and structure (tables, columns, letterhead, logos)
+      - Note image quality, scan artifacts, or clarity issues
+      - Identify any non-text elements (signatures, stamps, charts, images)      
+      
+      OUTPUT FORMAT:
+      Document Type: [Brief description of document type]
+      Description: [Simple description of layout and any notable elements]
+
+      [All extracted text content here - preserve exact formatting]
+    
+      SPECIAL CASES:
+      - If no text is present: "No text content found. Image shows: [description]"
+      - If text is completely illegible: "Text present but illegible due to [reason]. Image shows: [description]"
+      - If mixed languages: Extract all text and note language changes
 
 # Document Filtering Configuration
 filters:

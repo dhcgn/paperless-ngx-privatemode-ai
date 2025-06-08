@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -39,14 +39,15 @@ type LLMConfig struct {
 	API struct {
 		BaseURL  string `yaml:"base_url"`
 		Endpoint string `yaml:"endpoint"`
+		Timeout  int    `yaml:"timeout"` // Timeout in seconds for LLM API requests
 	} `yaml:"api"`
 	Models struct {
-		TitleGeneration   string `yaml:"title_generation"`
-		ContentExtraction string `yaml:"content_extraction"`
+		TitleGeneration string `yaml:"title_generation"`
+		OCR             string `yaml:"ocr"`
 	} `yaml:"models"`
 	Prompts struct {
-		TitleGeneration   string `yaml:"title_generation"`
-		ContentExtraction string `yaml:"content_extraction"`
+		TitleGeneration string `yaml:"title_generation"`
+		OCR             string `yaml:"ocr"`
 	} `yaml:"prompts"`
 }
 
@@ -96,8 +97,8 @@ func (c *Config) Validate() error {
 	if c.LLM.Models.TitleGeneration == "" {
 		return fmt.Errorf("llm.models.title_generation is required")
 	}
-	if c.LLM.Models.ContentExtraction == "" {
-		return fmt.Errorf("llm.models.content_extraction is required")
+	if c.LLM.Models.OCR == "" {
+		return fmt.Errorf("llm.models.ocr is required")
 	}
 
 	// Validate regex patterns
@@ -110,6 +111,14 @@ func (c *Config) Validate() error {
 		if _, err := regexp.Compile(pattern); err != nil {
 			return fmt.Errorf("invalid content filter pattern '%s': %w", pattern, err)
 		}
+	}
+
+	// Check for Prompts
+	if c.LLM.Prompts.TitleGeneration == "" {
+		return fmt.Errorf("llm.prompts.title_generation is required")
+	}
+	if c.LLM.Prompts.OCR == "" {
+		return fmt.Errorf("llm.prompts.ocr is required")
 	}
 
 	// Validate ImageMagick availability

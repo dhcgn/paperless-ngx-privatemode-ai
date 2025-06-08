@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"encoding/json"
@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 	"github.com/pterm/pterm"
 )
 
 type PaperlessClient struct {
-	config     *Config
+	config     *config.Config
 	httpClient *http.Client
 }
 
@@ -31,7 +32,15 @@ type DocumentsResponse struct {
 	Results []Document `json:"results"`
 }
 
-func NewPaperlessClient(config *Config) *PaperlessClient {
+// FilterType represents the type of document filter to apply
+type FilterType string
+
+const (
+	FilterTypeTitle   FilterType = "title"
+	FilterTypeContent FilterType = "content"
+)
+
+func NewPaperlessClient(config *config.Config) *PaperlessClient {
 	return &PaperlessClient{
 		config: config,
 		httpClient: &http.Client{
@@ -157,14 +166,14 @@ func (c *PaperlessClient) UpdateDocument(documentID int, updates map[string]inte
 	return nil
 }
 
-func (c *PaperlessClient) FilterDocuments(documents []Document, filterType string) ([]Document, error) {
+func (c *PaperlessClient) FilterDocuments(documents []Document, filterType FilterType) ([]Document, error) {
 	var filtered []Document
 	var patterns []string
 
 	switch filterType {
-	case "title":
+	case FilterTypeTitle:
 		patterns = c.config.Filters.Title.Pattern
-	case "content":
+	case FilterTypeContent:
 		patterns = c.config.Filters.Content.Pattern
 	default:
 		return nil, fmt.Errorf("unknown filter type: %s", filterType)
@@ -178,9 +187,9 @@ func (c *PaperlessClient) FilterDocuments(documents []Document, filterType strin
 	for _, doc := range documents {
 		var targetText string
 		switch filterType {
-		case "title":
+		case FilterTypeTitle:
 			targetText = doc.Title
-		case "content":
+		case FilterTypeContent:
 			targetText = doc.Content
 		}
 

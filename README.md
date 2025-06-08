@@ -29,6 +29,23 @@ When generating titles, the LLM provides multiple suggestions and you can intera
 
 ![Title Selection Dialog](docs/screenshot_title_select.png)
 
+## Prerequisites
+
+This tool requires two systems to be available:
+
+1. **Paperless-NGX** - Document management system
+2. **Privatemode-Proxy** - Confidential LLM proxy
+
+### Running Privatemode-Proxy
+
+You can easily run Privatemode-Proxy using Docker:
+
+```bash
+docker run -p 8080:8080 --rm ghcr.io/edgelesssys/privatemode/privatemode-proxy:latest --apiKey $PRIVATE_MODE_API_KEY
+```
+
+To obtain an API key, visit: https://www.privatemode.ai/api
+
 ## Run
 
 ```cmd
@@ -37,7 +54,7 @@ paperless-ngx-privatemode-ai.exe --config config.yaml
 
 ### Config
 
-See [config.yaml](config.yaml) for example configuration.
+See [config.sample.yaml](config.sample.yaml) for example configuration.
 
 You need to install ImageMagick on your system. On Windows, set the path in the configuration file under `tools.imagemagick-for-windows.fullpath`. On Linux, ensure ImageMagick is installed system-wide (it will be detected automatically).
 I'm not happy with this solution, but it works for now. I was not able to find a native Go library to convert PDF to images.
@@ -45,12 +62,10 @@ I'm not happy with this solution, but it works for now. I was not able to find a
 ### Dialog
 
 ```cmd
-# Set content or title of documents in Paperless NGX with confidential LLM by Privatemode.ai
-
-1. Set document titles which title contains pattern
-2. Set document content which content contains pattern
-3. Set document content and title which contains pattern **(Not implemented yet)**
-4. Set document content and title which contains LLM response contains pattern **(Not implemented yet)**
+Choose an action: [type to search]: 
+  Set titles from documents with pattern: '^SCN_.*$, .*BRN.*$'
+  Set content with OCR from documents with pattern: '^$'
+> Exit
 ```
 
 ### Program flow
