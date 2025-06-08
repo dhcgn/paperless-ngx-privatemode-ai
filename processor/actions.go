@@ -56,7 +56,7 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 
 	// Filter documents by title pattern
 	pterm.Info.Println("Filtering documents by title pattern...")
-	filteredDocs, err := executor.paperlessClient.FilterDocuments(documents, "title")
+	filteredDocs, err := executor.paperlessClient.FilterDocuments(documents, internal.FilterTypeTitle)
 	if err != nil {
 		return fmt.Errorf("failed to filter documents: %w", err)
 	}
@@ -184,7 +184,7 @@ func (a *SetContentAction) Execute(executor *ActionExecutor) error {
 
 	// Filter documents by content pattern
 	pterm.Info.Println("Filtering documents by content pattern...")
-	filteredDocs, err := executor.paperlessClient.FilterDocuments(documents, "content")
+	filteredDocs, err := executor.paperlessClient.FilterDocuments(documents, internal.FilterTypeContent)
 	if err != nil {
 		return fmt.Errorf("failed to filter documents: %w", err)
 	}
