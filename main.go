@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 	"github.com/dhcgn/paperless-ngx-privatemode-ai/internal"
@@ -111,11 +112,12 @@ func (a *App) askUserForAction() (processor.Action, error) {
 	pterm.DefaultHeader.Println("Select an action:")
 	pterm.Println()
 
+	patternTitleJoined := strings.Join(a.Config.Filters.Title.Pattern, ", ")
+	patternOcrJoined := strings.Join(a.Config.Filters.Content.Pattern, ", ")
+
 	options := []string{
-		"Set document titles which title contains pattern",
-		"Set document content which content contains pattern",
-		"Set document content and title which contains pattern",
-		"Set document content and title which contains LLM response contains pattern",
+		"Set titles from documents with pattern: " + patternTitleJoined,
+		"Set content with OCR from documents with pattern: " + patternOcrJoined,
 		"Exit",
 	}
 
@@ -134,10 +136,6 @@ func (a *App) askUserForAction() (processor.Action, error) {
 	case options[1]:
 		return &processor.SetContentAction{}, nil
 	case options[2]:
-		return &processor.SetTitleAndContentAction{}, nil
-	case options[3]:
-		return &processor.SetTitleAndContentWithLLMAction{}, nil
-	case options[4]:
 		pterm.Info.Println("Exiting...")
 		os.Exit(0)
 		return nil, nil

@@ -2,21 +2,20 @@ package internal
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 )
 
-// Schema file path for title generation
-const schemaTitleGenerationPath = "llm_assets/schema_title_generation.json"
+//go:embed llm_assets/schema_title_generation.json
+var schema_title_generation []byte
 
 // Vision types for OCR chat request
 type MessageContent struct {
@@ -145,7 +144,7 @@ func (c *LLMClient) CheckConnection() error {
 		if model.ID == c.config.LLM.Models.TitleGeneration {
 			titleModelAvailable = true
 		}
-		if model.ID == c.config.LLM.Models.ContentExtraction {
+		if model.ID == c.config.LLM.Models.OCR {
 			contentModelAvailable = true
 		}
 	}
@@ -154,7 +153,7 @@ func (c *LLMClient) CheckConnection() error {
 		return fmt.Errorf("title generation model '%s' not available", c.config.LLM.Models.TitleGeneration)
 	}
 	if !contentModelAvailable {
-		return fmt.Errorf("content extraction model '%s' not available", c.config.LLM.Models.ContentExtraction)
+		return fmt.Errorf("content extraction model '%s' not available", c.config.LLM.Models.OCR)
 	}
 
 	return nil
@@ -217,10 +216,13 @@ Content:
 	return captionResp, nil
 }
 
-func (c *LLMClient) ExtractContent(imageData []byte) (string, error) {
-	// For now, this is a placeholder as image processing requires base64 encoding
-	// and specific message format for vision models
-	response, err := c.sendOCRRequest(c.config.LLM.Models.ContentExtraction, c.config.LLM.Prompts.ContentExtraction, imageData)
+func (c *LLMClient) MakeOcr(imageData []byte) (string, error) {
+	// check if image data is jpg
+	if len(imageData) < 2 || (imageData[0] != 0xFF || imageData[1] != 0xD8) {
+		return "", fmt.Errorf("invalid image data: not a valid JPEG")
+	}
+
+	response, err := c.sendOCRRequest(c.config.LLM.Models.OCR, c.config.LLM.Prompts.OCR, imageData)
 	if err != nil {
 		return "", fmt.Errorf("failed to extract content: %w", err)
 	}
@@ -352,14 +354,8 @@ func (c *LLMClient) sendChatRequest(model, prompt string) (string, error) {
 func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, error) {
 	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
 
-	// Read and parse the schema file
-	schemaBytes, err := os.ReadFile(filepath.Join(".", schemaTitleGenerationPath))
-	if err != nil {
-		return "", fmt.Errorf("failed to read schema file: %w", err)
-	}
-
 	var schema interface{}
-	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+	if err := json.Unmarshal(schema_title_generation, &schema); err != nil {
 		return "", fmt.Errorf("failed to parse schema: %w", err)
 	}
 

@@ -22,7 +22,7 @@ func TestConfigValidation(t *testing.T) {
 	config.Paperless.API.Token = "test-token"
 	config.LLM.API.BaseURL = "http://localhost:9876"
 	config.LLM.Models.TitleGeneration = "test-model"
-	config.LLM.Models.ContentExtraction = "test-model"
+	config.LLM.Models.OCR = "test-model"
 
 	err = config.Validate()
 	if err != nil {
@@ -45,7 +45,7 @@ func TestFilterConfig(t *testing.T) {
 	config.Paperless.API.Token = "test-token"
 	config.LLM.API.BaseURL = "http://localhost:9876"
 	config.LLM.Models.TitleGeneration = "test-model"
-	config.LLM.Models.ContentExtraction = "test-model"
+	config.LLM.Models.OCR = "test-model"
 
 	err := config.Validate()
 	if err == nil {

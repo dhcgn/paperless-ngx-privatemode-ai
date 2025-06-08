@@ -10,9 +10,13 @@ import (
 	"github.com/pterm/pterm"
 )
 
+type UserOption string
+
 const (
-	skipDocumentOption = "Skip this document"
-	customTitleOption  = "Enter custom title"
+	Undefined                UserOption = ""
+	skipDocumentOption       UserOption = "Skip this document"
+	makeOcrAndTryAgainOption UserOption = "Make OCR and try again"
+	customTitleOption        UserOption = "Enter custom title"
 )
 
 type Action interface {
@@ -95,33 +99,13 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 			pterm.Info.Printf("Document Summary: %s\n\n", captionResp.Summarize)
 		}
 
-		// Sort captions by score (highest score first)
-		sort.Slice(captionResp.Captions, func(i, j int) bool {
-			return captionResp.Captions[i].Score > captionResp.Captions[j].Score
-		})
-
-		// Prepare options for user selection
-		options := make([]string, 0, len(captionResp.Captions)+2)
-
-		// Add each caption with its score
-		for i, caption := range captionResp.Captions {
-			options = append(options, fmt.Sprintf("%d. %s (Score: %.2f)", i+1, caption.Caption, caption.Score))
-		}
-
-		// Add option for custom title
-		options = append(options, customTitleOption)
-
-		// Add option to skip
-		options = append(options, skipDocumentOption)
-
-		// Show interactive select
-		selectedOption, err := pterm.DefaultInteractiveSelect.
-			WithOptions(options).
-			WithDefaultOption(skipDocumentOption).
-			Show(fmt.Sprintf("Choose a new title for document '%s':\nUrl: %s\n", doc.Title, executor.config.CreateUrl(doc.ID)))
-
+	AskForTitleSelection:
+		selectedOption, userSelectedTitle, err := AskForTitleSelection(captionResp, doc.Title, doc.ID, executor.config.CreateUrl(doc.ID))
 		if err != nil {
 			return "", false
+		}
+		if userSelectedTitle != "" {
+			return userSelectedTitle, true
 		}
 
 		// Check if user chose to skip
@@ -129,41 +113,133 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 			return "", false
 		}
 
-		// Check if user chose to enter custom title
-		if selectedOption == customTitleOption {
-			pterm.Println()
-			pterm.Info.Println("Please enter your custom title:")
-
-			// Create an interactive text input with single line input mode and show it
-			result, err := pterm.DefaultInteractiveTextInput.Show()
+		// Check if user chose to make OCR and try again
+		if selectedOption == makeOcrAndTryAgainOption {
+			pterm.Info.Println("Making OCR and trying again...")
+			// Call the OCR generation process
+			c := HeadlessActionClients{
+				Config:          executor.config,
+				PaperlessClient: executor.paperlessClient,
+				LLMClient:       executor.llmClient,
+			}
+			_, captions, err := c.OcrPaperlessDocument(doc.ID, func(status string) {
+				pterm.Info.Println(status)
+			})
 			if err != nil {
-				pterm.Error.Printf("Failed to get custom title input: %v\n", err)
+				pterm.Error.Printf("Failed to make OCR and generate title: %v\n", err)
 				return "", false
 			}
-
-			// Print a blank line for better readability
-			pterm.Println()
-
-			// Check if user entered something
-			if strings.TrimSpace(result) == "" {
-				pterm.Warning.Println("No title entered, skipping document")
+			if len(captions.Captions) == 0 {
+				pterm.Warning.Println("No titles generated after OCR, skipping document")
 				return "", false
 			}
+			captionResp = *captions
 
-			// Print the user's answer with an info prefix
-			pterm.Info.Printfln("You entered: %s", result)
-			return strings.TrimSpace(result), true
-		}
+			goto AskForTitleSelection // Re-ask for title selection with new captions
 
-		// Find the selected caption
-		for i, option := range options[:len(captionResp.Captions)] {
-			if option == selectedOption {
-				return captionResp.Captions[i].Caption, true
-			}
 		}
 
 		return "", false
 	})
+}
+
+func AskForTitleSelection(captionResp internal.CaptionResponse, currentTitle string, id int, url string) (UserOption, string, error) {
+	// Sort captions by score (highest score first)
+	sort.Slice(captionResp.Captions, func(i, j int) bool {
+		return captionResp.Captions[i].Score > captionResp.Captions[j].Score
+	})
+
+	mapTitleToOptions := make(map[string]string)
+
+	// Prepare options for user selection
+	options := make([]string, 0, len(captionResp.Captions)+2)
+
+	// Add each caption with its score
+	for i, caption := range captionResp.Captions {
+		optDisplayTitleWithScore := fmt.Sprintf("%d. %s (Score: %.2f)", i+1, caption.Caption, caption.Score)
+		options = append(options, optDisplayTitleWithScore)
+		mapTitleToOptions[optDisplayTitleWithScore] = caption.Caption
+	}
+
+	// Add option for custom title
+	options = append(options, string(customTitleOption))
+
+	// Add option to skip
+	options = append(options, string(skipDocumentOption))
+
+	// Add option to make OCR and try again
+	options = append(options, string(makeOcrAndTryAgainOption))
+
+	// Show interactive select
+	selectedOption, err := pterm.DefaultInteractiveSelect.
+		WithOptions(options).
+		WithDefaultOption(string(skipDocumentOption)).
+		Show(fmt.Sprintf("Choose a new title for document '%s' (id: %d):\nUrl: %s\n", currentTitle, id, url))
+
+	if err != nil {
+		return Undefined, "", fmt.Errorf("failed to get user selection: %w", err)
+	}
+
+	// Check if the selected option is valid
+	if selectedOption == "" {
+		return Undefined, "", fmt.Errorf("no valid option selected")
+	}
+
+	// Declare userOption before the switch
+	var userOption UserOption
+
+	// Check if the selected option is one of the custom options using a switch for clarity
+	switch selectedOption {
+	case string(skipDocumentOption):
+		userOption = skipDocumentOption
+	case string(makeOcrAndTryAgainOption):
+		userOption = makeOcrAndTryAgainOption
+	case string(customTitleOption):
+		userOption = customTitleOption
+	default:
+		userOption = Undefined
+	}
+
+	customUserTitle := ""
+	if userOption == customTitleOption {
+		pterm.Println()
+		pterm.Info.Println("Please enter your custom title:")
+
+		// Create an interactive text input with single line input mode and show it
+		result, err := pterm.DefaultInteractiveTextInput.Show()
+		if err != nil {
+			pterm.Error.Printf("Failed to get custom title input: %v\n", err)
+			return userOption, "", fmt.Errorf("failed to get custom title input: %w", err)
+		}
+
+		// Print a blank line for better readability
+		pterm.Println()
+
+		// Check if user entered something
+		if strings.TrimSpace(result) == "" {
+			pterm.Warning.Println("No title entered, skipping document")
+			return userOption, "", nil
+		}
+
+		// Print the user's answer with an info prefix
+		pterm.Info.Printfln("You entered: %s", result)
+
+		return userOption, strings.TrimSpace(result), nil
+	} else if userOption != Undefined {
+		return userOption, "", nil
+	}
+
+	// If the selected option is one of the captions, return the corresponding title
+	customUserTitle, exists := mapTitleToOptions[selectedOption]
+	if !exists {
+		return Undefined, "", fmt.Errorf("selected option '%s' does not correspond to any title", selectedOption)
+	}
+	// If the selected option is a valid caption, return it
+	if customUserTitle == "" {
+		return Undefined, "", fmt.Errorf("no title found for selected option '%s'", selectedOption)
+	}
+
+	return userOption, customUserTitle, nil
 }
 
 // SetContentAction - Set document content which content contains pattern
@@ -274,7 +350,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []internal.Document, use
 		}
 
 		// Extract content using LLM
-		newContent, err := e.llmClient.ExtractContent(jpegData)
+		newContent, err := e.llmClient.MakeOcr(jpegData)
 		if err != nil {
 			pterm.Warning.Printf("Failed to extract content for document %d: %v\n", doc.ID, err)
 			stats.errors++
@@ -337,30 +413,6 @@ func (e *ActionExecutor) processOCRGeneration(documents []internal.Document, use
 	}
 
 	stats.renderFinalSummary(len(documents))
-	return nil
-}
-
-// SetTitleAndContentAction - Set document content and title which contains pattern
-type SetTitleAndContentAction struct{}
-
-func (a *SetTitleAndContentAction) Description() string {
-	return "Set document content and title which contains pattern"
-}
-
-func (a *SetTitleAndContentAction) Execute(executor *ActionExecutor) error {
-	pterm.Warning.Println("Combined title and content processing is not yet implemented")
-	return nil
-}
-
-// SetTitleAndContentWithLLMAction - Set document content and title which contains LLM response contains pattern
-type SetTitleAndContentWithLLMAction struct{}
-
-func (a *SetTitleAndContentWithLLMAction) Description() string {
-	return "Set document content and title which contains LLM response contains pattern"
-}
-
-func (a *SetTitleAndContentWithLLMAction) Execute(executor *ActionExecutor) error {
-	pterm.Warning.Println("LLM response pattern matching is not yet implemented")
 	return nil
 }
 
@@ -437,23 +489,6 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []internal
 		sort.Slice(captions.Captions, func(i, j int) bool {
 			return captions.Captions[i].Score > captions.Captions[j].Score
 		})
-
-		// Check if any captions need rescanning
-		needsRescan := false
-		for _, caption := range captions.Captions {
-			if caption.Caption == "RESCAN DOCUMENT" {
-				needsRescan = true
-				break
-			}
-		}
-
-		if needsRescan {
-			pterm.Warning.Printf("Document %d needs rescanning, skipping\n", doc.ID)
-			stats.errors++
-			stats.processed++
-			stats.renderProgressChart()
-			continue
-		}
 
 		var selectedTitle string
 		var userConfirmed bool
