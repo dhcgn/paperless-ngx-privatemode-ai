@@ -39,6 +39,7 @@ type LLMConfig struct {
 	API struct {
 		BaseURL  string `yaml:"base_url"`
 		Endpoint string `yaml:"endpoint"`
+		Timeout  int    `yaml:"timeout"` // Timeout in seconds for LLM API requests
 	} `yaml:"api"`
 	Models struct {
 		TitleGeneration   string `yaml:"title_generation"`

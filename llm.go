@@ -92,10 +92,16 @@ type ModelsResponse struct {
 }
 
 func NewLLMClient(config *Config) *LLMClient {
+	// Use configured timeout or default to 300 seconds (5 minutes)
+	timeout := config.LLM.API.Timeout
+	if timeout <= 0 {
+		timeout = 300 // Default to 5 minutes
+	}
+	
 	return &LLMClient{
 		config: config,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: time.Duration(timeout) * time.Second,
 		},
 	}
 }

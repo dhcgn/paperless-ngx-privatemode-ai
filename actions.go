@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/pterm/pterm"
 )
@@ -85,6 +86,11 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 		if captionResp.Summarize != "" {
 			pterm.Info.Printf("Document Summary: %s\n\n", captionResp.Summarize)
 		}
+
+		// Sort captions by score (highest score first)
+		sort.Slice(captionResp.Captions, func(i, j int) bool {
+			return captionResp.Captions[i].Score > captionResp.Captions[j].Score
+		})
 
 		// Prepare options for user selection
 		options := make([]string, 0, len(captionResp.Captions)+1)
@@ -258,6 +264,11 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 			continue
 		}
 
+		// Sort captions by score (highest score first)
+		sort.Slice(captions.Captions, func(i, j int) bool {
+			return captions.Captions[i].Score > captions.Captions[j].Score
+		})
+
 		newTitle := captions.Captions[0].Caption
 
 		if userCallback != nil {
@@ -383,6 +394,11 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 			stats.renderProgressChart()
 			continue
 		}
+
+		// Sort captions by score (highest score first)
+		sort.Slice(captions.Captions, func(i, j int) bool {
+			return captions.Captions[i].Score > captions.Captions[j].Score
+		})
 
 		// Check if any captions need rescanning
 		needsRescan := false

@@ -5,7 +5,7 @@
     "properties": {
       "summarize": {
         "type": "string",
-        "description": "A detailed summary of the document content that provides context for understanding why the captions were suggested."
+        "description": "A comprehensive and detailed summary of the document content including key entities, dates, amounts, document type, purpose, and any other relevant contextual information that helps understand what the document is about and why specific titles would be appropriate."
       },
       "captions": {
         "type": "array",
