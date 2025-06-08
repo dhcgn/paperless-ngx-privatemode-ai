@@ -3,8 +3,14 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/pterm/pterm"
+)
+
+const (
+	skipDocumentOption = "Skip this document"
+	customTitleOption  = "Enter custom title"
 )
 
 type Action interface {
@@ -93,20 +99,23 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 		})
 
 		// Prepare options for user selection
-		options := make([]string, 0, len(captionResp.Captions)+1)
+		options := make([]string, 0, len(captionResp.Captions)+2)
 
 		// Add each caption with its score
 		for i, caption := range captionResp.Captions {
 			options = append(options, fmt.Sprintf("%d. %s (Score: %.2f)", i+1, caption.Caption, caption.Score))
 		}
 
+		// Add option for custom title
+		options = append(options, customTitleOption)
+
 		// Add option to skip
-		options = append(options, "Skip this document")
+		options = append(options, skipDocumentOption)
 
 		// Show interactive select
 		selectedOption, err := pterm.DefaultInteractiveSelect.
 			WithOptions(options).
-			WithDefaultOption("Skip this document").
+			WithDefaultOption(skipDocumentOption).
 			Show(fmt.Sprintf("Choose a new title for document '%s':\nUrl: %s\n", doc.Title, executor.config.CreateUrl(doc.ID)))
 
 		if err != nil {
@@ -114,8 +123,34 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 		}
 
 		// Check if user chose to skip
-		if selectedOption == "Skip this document" {
+		if selectedOption == skipDocumentOption {
 			return "", false
+		}
+
+		// Check if user chose to enter custom title
+		if selectedOption == customTitleOption {
+			pterm.Println()
+			pterm.Info.Println("Please enter your custom title:")
+
+			// Create an interactive text input with single line input mode and show it
+			result, err := pterm.DefaultInteractiveTextInput.Show()
+			if err != nil {
+				pterm.Error.Printf("Failed to get custom title input: %v\n", err)
+				return "", false
+			}
+
+			// Print a blank line for better readability
+			pterm.Println()
+
+			// Check if user entered something
+			if strings.TrimSpace(result) == "" {
+				pterm.Warning.Println("No title entered, skipping document")
+				return "", false
+			}
+
+			// Print the user's answer with an info prefix
+			pterm.Info.Printfln("You entered: %s", result)
+			return strings.TrimSpace(result), true
 		}
 
 		// Find the selected caption
@@ -378,6 +413,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 
 	for _, doc := range documents {
 		// Generate new titles using LLM
+		pterm.Info.Printf("Generating title for document '%s' (id: %d, link: %s)\n", doc.Title, doc.ID, e.config.CreateUrl(doc.ID))
 		captions, err := e.llmClient.GenerateTitleFromContent(doc.Content)
 		if err != nil {
 			pterm.Warning.Printf("Failed to generate title for document %d: %v\n", doc.ID, err)
