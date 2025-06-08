@@ -12,8 +12,8 @@
                 "config.production.yaml"
             ],
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "showLog": true
+            // "console": "integratedTerminal",
+            // "showLog": true
         }
     ]
 }

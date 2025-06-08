@@ -116,8 +116,8 @@ func (a *App) askUserForAction() (processor.Action, error) {
 	patternOcrJoined := strings.Join(a.Config.Filters.Content.Pattern, ", ")
 
 	options := []string{
-		"Set titles from documents with pattern: " + patternTitleJoined,
-		"Set content with OCR from documents with pattern: " + patternOcrJoined,
+		fmt.Sprintf("Set titles from documents with pattern: '%s'", patternTitleJoined),
+		fmt.Sprintf("Set content with OCR from documents with pattern: '%s'", patternOcrJoined),
 		"Exit",
 	}
 
