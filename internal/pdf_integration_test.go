@@ -1,12 +1,14 @@
 //go:build integration
 // +build integration
 
-package main
+package internal
 
 import (
 	_ "embed"
 	"reflect"
 	"testing"
+
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 )
 
 var (
@@ -24,16 +26,16 @@ func TestConfig_RenderPageToJpg(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		c       *Config
+		c       *config.Config
 		args    args
 		want    []byte
 		wantErr bool
 	}{
 		{
 			name: "Valid PDF with one page",
-			c: &Config{
-				Tools: ToolsConfig{
-					ImagemagickForWindows: ImagemagickConfig{
+			c: &config.Config{
+				Tools: config.ToolsConfig{
+					ImagemagickForWindows: config.ImagemagickConfig{
 						FullPath: `C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe`, // For Windows testing
 					},
 				},
@@ -48,7 +50,7 @@ func TestConfig_RenderPageToJpg(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.c.RenderPageToJpg(tt.args.pdfBytes, tt.args.page)
+			got, err := RenderPageToJpg(tt.c, tt.args.pdfBytes, tt.args.page)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Config.RenderPageToJpg() error = %v, wantErr %v", err, tt.wantErr)
 				return

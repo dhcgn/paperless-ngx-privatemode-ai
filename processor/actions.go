@@ -1,10 +1,12 @@
-package main
+package processor
 
 import (
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/internal"
 	"github.com/pterm/pterm"
 )
 
@@ -19,12 +21,12 @@ type Action interface {
 }
 
 type ActionExecutor struct {
-	paperlessClient *PaperlessClient
-	llmClient       *LLMClient
-	config          *Config
+	paperlessClient *internal.PaperlessClient
+	llmClient       *internal.LLMClient
+	config          *config.Config
 }
 
-func NewActionExecutor(paperlessClient *PaperlessClient, llmClient *LLMClient, config *Config) *ActionExecutor {
+func NewActionExecutor(paperlessClient *internal.PaperlessClient, llmClient *internal.LLMClient, config *config.Config) *ActionExecutor {
 	return &ActionExecutor{
 		paperlessClient: paperlessClient,
 		llmClient:       llmClient,
@@ -87,7 +89,7 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 	}
 
 	// Process documents
-	return executor.processDocumentsForTitleGeneration(filteredDocs, func(doc Document, captionResp CaptionResponse) (string, bool) {
+	return executor.processDocumentsForTitleGeneration(filteredDocs, func(doc internal.Document, captionResp internal.CaptionResponse) (string, bool) {
 		// Show document summary first
 		if captionResp.Summarize != "" {
 			pterm.Info.Printf("Document Summary: %s\n\n", captionResp.Summarize)
@@ -215,7 +217,7 @@ func (a *SetContentAction) Execute(executor *ActionExecutor) error {
 	}
 
 	// Process documents
-	return executor.processOCRGeneration(filteredDocs, func(doc Document, newContent string, newTitle string) bool {
+	return executor.processOCRGeneration(filteredDocs, func(doc internal.Document, newContent string, newTitle string) bool {
 		previewContent := newContent
 		if len(newContent) > 50 {
 			previewContent = newContent[:50] + "..."
@@ -239,7 +241,7 @@ func (a *SetContentAction) Execute(executor *ActionExecutor) error {
 	})
 }
 
-func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback func(Document, string, string) bool) error {
+func (e *ActionExecutor) processOCRGeneration(documents []internal.Document, userCallback func(internal.Document, string, string) bool) error {
 	stats := &ProgressStats{
 		processed: 0,
 		success:   0,
@@ -262,7 +264,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 		}
 
 		// Convert first page to JPEG
-		jpegData, err := e.config.RenderPageToJpg(pdfBytes, 0)
+		jpegData, err := internal.RenderPageToJpg(e.config, pdfBytes, 0)
 		if err != nil {
 			pterm.Warning.Printf("Failed to render page to JPG for document %d: %v\n", doc.ID, err)
 			stats.errors++
@@ -400,7 +402,7 @@ func (stats *ProgressStats) renderFinalSummary(totalDocuments int) {
 	pterm.DefaultBarChart.WithHorizontal().WithBars(bars).WithShowValue().Render()
 }
 
-func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document, userCallback func(Document, CaptionResponse) (string, bool)) error {
+func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []internal.Document, userCallback func(internal.Document, internal.CaptionResponse) (string, bool)) error {
 	stats := &ProgressStats{
 		processed: 0,
 		success:   0,

@@ -1,11 +1,13 @@
 //go:build integration
 // +build integration
 
-package main
+package internal
 
 import (
 	"fmt"
 	"testing"
+
+	cfg "github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 )
 
 const titleGenerationPrompt = `
@@ -37,8 +39,8 @@ You deplore the demonstrations taking place in Birmingham. But your statement, I
 
 func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 	// Create a config for testing
-	config := &Config{
-		LLM: LLMConfig{
+	config := &cfg.Config{
+		LLM: cfg.LLMConfig{
 			API: struct {
 				BaseURL  string `yaml:"base_url"`
 				Endpoint string `yaml:"endpoint"`
@@ -62,7 +64,7 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 				TitleGeneration: titleGenerationPrompt,
 			},
 		},
-		Processing: ProcessingConfig{
+		Processing: cfg.ProcessingConfig{
 			TitleGeneration: struct {
 				TruncateCharactersOfContent int `yaml:"truncate_characters_of_content"`
 			}{
@@ -72,7 +74,7 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 	}
 
 	type fields struct {
-		config *Config
+		config *cfg.Config
 	}
 	type args struct {
 		content string

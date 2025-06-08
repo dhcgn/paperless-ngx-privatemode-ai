@@ -1,21 +1,22 @@
-package main
+package internal
 
 import (
 	"bytes"
-	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 )
 
-var (
-	//go:embed llm_assets/schema_title_generation.json
-	schemaTitleGeneration []byte
-)
+// Schema file path for title generation
+const schemaTitleGenerationPath = "llm_assets/schema_title_generation.json"
 
 // Vision types for OCR chat request
 type MessageContent struct {
@@ -39,7 +40,7 @@ type VisionChatRequest struct {
 }
 
 type LLMClient struct {
-	config     *Config
+	config     *config.Config
 	httpClient *http.Client
 }
 
@@ -91,7 +92,7 @@ type ModelsResponse struct {
 	Data []ModelInfo `json:"data"`
 }
 
-func NewLLMClient(config *Config) *LLMClient {
+func NewLLMClient(config *config.Config) *LLMClient {
 	// Use configured timeout or default to 300 seconds (5 minutes)
 	timeout := config.LLM.API.Timeout
 	if timeout <= 0 {
@@ -351,10 +352,15 @@ func (c *LLMClient) sendChatRequest(model, prompt string) (string, error) {
 func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, error) {
 	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
 
-	// Parse the embedded schema
+	// Read and parse the schema file
+	schemaBytes, err := os.ReadFile(filepath.Join(".", schemaTitleGenerationPath))
+	if err != nil {
+		return "", fmt.Errorf("failed to read schema file: %w", err)
+	}
+
 	var schema interface{}
-	if err := json.Unmarshal(schemaTitleGeneration, &schema); err != nil {
-		return "", fmt.Errorf("failed to parse embedded schema: %w", err)
+	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+		return "", fmt.Errorf("failed to parse schema: %w", err)
 	}
 
 	// Extract the schema content from the parsed JSON

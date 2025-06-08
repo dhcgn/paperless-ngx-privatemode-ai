@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"encoding/json"
@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 	"github.com/pterm/pterm"
 )
 
 type PaperlessClient struct {
-	config     *Config
+	config     *config.Config
 	httpClient *http.Client
 }
 
@@ -31,7 +32,7 @@ type DocumentsResponse struct {
 	Results []Document `json:"results"`
 }
 
-func NewPaperlessClient(config *Config) *PaperlessClient {
+func NewPaperlessClient(config *config.Config) *PaperlessClient {
 	return &PaperlessClient{
 		config: config,
 		httpClient: &http.Client{

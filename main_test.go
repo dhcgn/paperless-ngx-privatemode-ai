@@ -2,12 +2,14 @@ package main
 
 import (
 	"testing"
+
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
 )
 
 func TestConfigValidation(t *testing.T) {
-	config := &Config{
-		Paperless: PaperlessConfig{},
-		LLM:       LLMConfig{},
+	config := &config.Config{
+		Paperless: config.PaperlessConfig{},
+		LLM:       config.LLMConfig{},
 	}
 
 	err := config.Validate()
@@ -29,9 +31,9 @@ func TestConfigValidation(t *testing.T) {
 }
 
 func TestFilterConfig(t *testing.T) {
-	config := &Config{
-		Filters: FiltersConfig{
-			Title: FilterConfig{
+	config := &config.Config{
+		Filters: config.FiltersConfig{
+			Title: config.FilterConfig{
 				PatternType: "regex",
 				Pattern:     []string{"^SCN_.*$", "[invalid"},
 			},

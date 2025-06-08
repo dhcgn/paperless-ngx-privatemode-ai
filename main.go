@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/config"
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/internal"
+	"github.com/dhcgn/paperless-ngx-privatemode-ai/processor"
 	"github.com/pterm/pterm"
 )
 
@@ -55,13 +58,13 @@ func showBanner() {
 
 type App struct {
 	ConfigPath string
-	Config     *Config
+	Config     *config.Config
 }
 
 func (a *App) Run() error {
 	// 1. Load configuration from argument --config
 	pterm.Info.Println("Loading configuration...")
-	config, err := LoadConfig(a.ConfigPath)
+	config, err := config.LoadConfig(a.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -77,7 +80,7 @@ func (a *App) Run() error {
 
 	// 3. Check if paperless-ngx is accessible
 	pterm.Info.Println("Checking Paperless NGX accessibility...")
-	paperlessClient := NewPaperlessClient(a.Config)
+	paperlessClient := internal.NewPaperlessClient(a.Config)
 	if err := paperlessClient.CheckConnection(); err != nil {
 		return fmt.Errorf("paperless-ngx is not accessible: %w", err)
 	}
@@ -85,7 +88,7 @@ func (a *App) Run() error {
 
 	// 4. Check if privatemode.ai is accessible and models are available
 	pterm.Info.Println("Checking LLM service accessibility...")
-	llmClient := NewLLMClient(a.Config)
+	llmClient := internal.NewLLMClient(a.Config)
 	if err := llmClient.CheckConnection(); err != nil {
 		return fmt.Errorf("LLM service is not accessible: %w", err)
 	}
@@ -99,11 +102,11 @@ func (a *App) Run() error {
 
 	// 6. Execute action and show progress
 	pterm.Info.Printf("Executing action: %s\n", action.Description())
-	executor := NewActionExecutor(paperlessClient, llmClient, a.Config)
+	executor := processor.NewActionExecutor(paperlessClient, llmClient, a.Config)
 	return executor.Execute(action)
 }
 
-func (a *App) askUserForAction() (Action, error) {
+func (a *App) askUserForAction() (processor.Action, error) {
 	pterm.Println()
 	pterm.DefaultHeader.Println("Select an action:")
 	pterm.Println()
@@ -127,13 +130,13 @@ func (a *App) askUserForAction() (Action, error) {
 
 	switch selectedOption {
 	case options[0]:
-		return &SetTitleAction{}, nil
+		return &processor.SetTitleAction{}, nil
 	case options[1]:
-		return &SetContentAction{}, nil
+		return &processor.SetContentAction{}, nil
 	case options[2]:
-		return &SetTitleAndContentAction{}, nil
+		return &processor.SetTitleAndContentAction{}, nil
 	case options[3]:
-		return &SetTitleAndContentWithLLMAction{}, nil
+		return &processor.SetTitleAndContentWithLLMAction{}, nil
 	case options[4]:
 		pterm.Info.Println("Exiting...")
 		os.Exit(0)
