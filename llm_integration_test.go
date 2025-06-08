@@ -108,12 +108,13 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 				t.Errorf("LLMClient.GenerateTitleFromContent() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if len(got) < tt.wantMinCount {
-				t.Errorf("LLMClient.GenerateTitleFromContent() returned %d captions, want at least %d", len(got), tt.wantMinCount)
+			if len(got.Captions) < tt.wantMinCount {
+				t.Errorf("LLMClient.GenerateTitleFromContent() returned %d captions, want at least %d", len(got.Captions), tt.wantMinCount)
 			}
-			if len(got) > 0 {
-				titles := make([]string, len(got))
-				for i, caption := range got {
+			if len(got.Captions) > 0 {
+				t.Logf("Document Summary: %s", got.Summarize)
+				titles := make([]string, len(got.Captions))
+				for i, caption := range got.Captions {
 					titles[i] = fmt.Sprintf("%s (score: %.2f)", caption.Caption, caption.Score)
 				}
 				t.Logf("Generated captions: %v", titles)

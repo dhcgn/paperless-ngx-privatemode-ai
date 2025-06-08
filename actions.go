@@ -80,12 +80,17 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 	}
 
 	// Process documents
-	return executor.processDocumentsForTitleGeneration(filteredDocs, func(doc Document, captions []Caption) (string, bool) {
+	return executor.processDocumentsForTitleGeneration(filteredDocs, func(doc Document, captionResp CaptionResponse) (string, bool) {
+		// Show document summary first
+		if captionResp.Summarize != "" {
+			pterm.Info.Printf("Document Summary: %s\n\n", captionResp.Summarize)
+		}
+
 		// Prepare options for user selection
-		options := make([]string, 0, len(captions)+1)
+		options := make([]string, 0, len(captionResp.Captions)+1)
 
 		// Add each caption with its score
-		for i, caption := range captions {
+		for i, caption := range captionResp.Captions {
 			options = append(options, fmt.Sprintf("%d. %s (Score: %.2f)", i+1, caption.Caption, caption.Score))
 		}
 
@@ -96,7 +101,7 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 		selectedOption, err := pterm.DefaultInteractiveSelect.
 			WithOptions(options).
 			WithDefaultOption("Skip this document").
-			Show(fmt.Sprintf("Choose a new title for document '%s':\nUrl: %s", doc.Title, executor.config.CreateUrl(doc.ID)))
+			Show(fmt.Sprintf("Choose a new title for document '%s':\nUrl: %s\n", doc.Title, executor.config.CreateUrl(doc.ID)))
 
 		if err != nil {
 			return "", false
@@ -108,9 +113,9 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 		}
 
 		// Find the selected caption
-		for i, option := range options[:len(captions)] {
+		for i, option := range options[:len(captionResp.Captions)] {
 			if option == selectedOption {
-				return captions[i].Caption, true
+				return captionResp.Captions[i].Caption, true
 			}
 		}
 
@@ -245,7 +250,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 			continue
 		}
 
-		if len(captions) == 0 {
+		if len(captions.Captions) == 0 {
 			pterm.Warning.Printf("No titles generated for document %d\n", doc.ID)
 			stats.errors++
 			stats.processed++
@@ -253,7 +258,7 @@ func (e *ActionExecutor) processOCRGeneration(documents []Document, userCallback
 			continue
 		}
 
-		newTitle := captions[0].Caption
+		newTitle := captions.Captions[0].Caption
 
 		if userCallback != nil {
 			pterm.Info.Println("Start User Interaction")
@@ -349,7 +354,7 @@ func (stats *ProgressStats) renderFinalSummary(totalDocuments int) {
 	pterm.DefaultBarChart.WithHorizontal().WithBars(bars).WithShowValue().Render()
 }
 
-func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document, userCallback func(Document, []Caption) (string, bool)) error {
+func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document, userCallback func(Document, CaptionResponse) (string, bool)) error {
 	stats := &ProgressStats{
 		processed: 0,
 		success:   0,
@@ -371,7 +376,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 			continue
 		}
 
-		if len(captions) == 0 {
+		if len(captions.Captions) == 0 {
 			pterm.Warning.Printf("No titles generated for document %d\n", doc.ID)
 			stats.errors++
 			stats.processed++
@@ -381,7 +386,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 
 		// Check if any captions need rescanning
 		needsRescan := false
-		for _, caption := range captions {
+		for _, caption := range captions.Captions {
 			if caption.Caption == "RESCAN DOCUMENT" {
 				needsRescan = true
 				break
@@ -412,7 +417,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []Document
 			pterm.Info.Println("End of User Interaction")
 		} else {
 			// Use the first generated title if no callback
-			selectedTitle = captions[0].Caption
+			selectedTitle = captions.Captions[0].Caption
 			userConfirmed = true
 		}
 

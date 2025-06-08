@@ -20,9 +20,13 @@ llm:
       Return possible titles for this document, the titles should be describe the content of this document.
 
       - Keep the language of the original document.
-      - Return this result as a json array. 
+      - Return this result as a json object with 'summarize' and 'captions' properties.
       - You must respond with only valid JSON. 
       - No markdown, only json.
+      - First provide a detailed summary of what the document content is about in the 'summarize' field.
+      - Then provide an array of caption objects with 'caption' and 'score' properties.
+      - The score should be from 0 to 1 indicating how well the caption describes the content.
+      - The summary should be detailed enough to put the suggested captions in proper context.
       - In the case the document seems to be not correctly interpreted, return "RESCAN DOCUMENT".
 
       --- document ocr content (first {truncate_chars} chars) ---

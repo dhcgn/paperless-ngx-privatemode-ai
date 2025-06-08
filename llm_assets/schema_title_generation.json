@@ -3,6 +3,10 @@
   "schema": {
     "type": "object",
     "properties": {
+      "summarize": {
+        "type": "string",
+        "description": "A detailed summary of the document content that provides context for understanding why the captions were suggested."
+      },
       "captions": {
         "type": "array",
         "description": "A list of possible captions with their relevance scores.",
@@ -27,6 +31,7 @@
       }
     },
     "required": [
+      "summarize",
       "captions"
     ],
     "additionalProperties": false

@@ -66,7 +66,8 @@ type JSONSchema struct {
 }
 
 type CaptionResponse struct {
-	Captions []Caption `json:"captions"`
+	Summarize string    `json:"summarize"`
+	Captions  []Caption `json:"captions"`
 }
 
 type Caption struct {
@@ -152,10 +153,13 @@ func (c *LLMClient) CheckConnection() error {
 	return nil
 }
 
-func (c *LLMClient) GenerateTitleFromContent(content string) ([]Caption, error) {
+func (c *LLMClient) GenerateTitleFromContent(content string) (CaptionResponse, error) {
 	if content == "" {
-		return []Caption{
-			{Caption: "EMPTY_CONTENT", Score: 0.0},
+		return CaptionResponse{
+			Summarize: "Empty document content",
+			Captions: []Caption{
+				{Caption: "EMPTY_CONTENT", Score: 0.0},
+			},
 		}, nil
 	}
 
@@ -183,21 +187,27 @@ Content:
 
 	response, err := c.sendStructuredChatRequest(c.config.LLM.Models.TitleGeneration, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate title: %w", err)
+		return CaptionResponse{}, fmt.Errorf("failed to generate title: %w", err)
 	}
 
 	// Parse the structured response
 	var captionResp CaptionResponse
 	if err := json.Unmarshal([]byte(response), &captionResp); err != nil {
 		// If JSON parsing fails, return the raw response as a single caption
-		return []Caption{{Caption: response, Score: 0.0}}, nil
+		return CaptionResponse{
+			Summarize: "Failed to parse LLM response",
+			Captions:  []Caption{{Caption: response, Score: 0.0}},
+		}, nil
 	}
 
 	if len(captionResp.Captions) == 0 {
-		return []Caption{{Caption: response, Score: 0.0}}, nil
+		return CaptionResponse{
+			Summarize: captionResp.Summarize,
+			Captions:  []Caption{{Caption: response, Score: 0.0}},
+		}, nil
 	}
 
-	return captionResp.Captions, nil
+	return captionResp, nil
 }
 
 func (c *LLMClient) ExtractContent(imageData []byte) (string, error) {
