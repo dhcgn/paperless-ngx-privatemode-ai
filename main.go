@@ -134,7 +134,7 @@ func (a *App) askUserForAction() (processor.Action, error) {
 	case options[0]:
 		return &processor.SetTitleAction{}, nil
 	case options[1]:
-		return &processor.SetContentAction{}, nil
+		return &processor.SetOcrInContentAction{}, nil
 	case options[2]:
 		pterm.Info.Println("Exiting...")
 		os.Exit(0)
