@@ -97,7 +97,7 @@ func NewLLMClient(config *Config) *LLMClient {
 	if timeout <= 0 {
 		timeout = 300 // Default to 5 minutes
 	}
-	
+
 	return &LLMClient{
 		config: config,
 		httpClient: &http.Client{

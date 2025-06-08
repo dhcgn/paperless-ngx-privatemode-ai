@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"testing"
 )
 
@@ -43,9 +42,11 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 			API: struct {
 				BaseURL  string `yaml:"base_url"`
 				Endpoint string `yaml:"endpoint"`
+				Timeout  int    `yaml:"timeout"`
 			}{
 				BaseURL:  "http://localhost:8080",
 				Endpoint: "/v1/chat/completions",
+				Timeout:  30, // 30 seconds timeout for integration tests
 			},
 			Models: struct {
 				TitleGeneration   string `yaml:"title_generation"`
@@ -71,8 +72,7 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 	}
 
 	type fields struct {
-		config     *Config
-		httpClient *http.Client
+		config *Config
 	}
 	type args struct {
 		content string
@@ -87,8 +87,7 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 		{
 			name: "Generate titles from Martin Luther King Jr. letter content",
 			fields: fields{
-				config:     config,
-				httpClient: &http.Client{},
+				config: config,
 			},
 			args: args{
 				content: contentSample,
@@ -99,10 +98,7 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &LLMClient{
-				config:     tt.fields.config,
-				httpClient: tt.fields.httpClient,
-			}
+			c := NewLLMClient(tt.fields.config)
 			got, err := c.GenerateTitleFromContent(tt.args.content)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LLMClient.GenerateTitleFromContent() error = %v, wantErr %v", err, tt.wantErr)
