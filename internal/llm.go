@@ -82,6 +82,29 @@ type ChatChoice struct {
 	Message ChatMessage `json:"message"`
 }
 
+// doRequestWithRetry wraps httpClient.Do(req) with retry logic (3 attempts)
+func (c *LLMClient) doRequestWithRetry(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		resp, err = c.httpClient.Do(req)
+		if err == nil {
+			return resp, nil
+		}
+
+		// If we got a response, drain the body to avoid resource leaks
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+
+		if attempt < maxRetries {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+	}
+	return nil, fmt.Errorf("failed to connect after %d attempts: %w", maxRetries, err)
+}
+
 type ChatResponse struct {
 	Choices []ChatChoice `json:"choices"`
 }
@@ -138,9 +161,9 @@ func (c *LLMClient) CheckConnection() error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequestWithRetry(req)
 	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
+		return err
 	}
 	// Always drain and close the body for connection reuse
 	defer func() {
@@ -310,7 +333,7 @@ func (c *LLMClient) sendOCRRequest(model, prompt string, imageData []byte) (stri
 		}
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequestWithRetry(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
@@ -471,7 +494,7 @@ func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, err
 		}
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequestWithRetry(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
