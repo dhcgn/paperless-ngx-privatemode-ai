@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -118,6 +119,9 @@ func (c *Config) Validate() error {
 	// Check for Prompts
 	if c.LLM.Prompts.TitleGeneration == "" {
 		return fmt.Errorf("llm.prompts.title_generation is required")
+	}
+	if !strings.Contains(c.LLM.Prompts.TitleGeneration, "{content}") {
+		return fmt.Errorf("llm.prompts.title_generation must include {content}")
 	}
 	if c.LLM.Prompts.OCR == "" {
 		return fmt.Errorf("llm.prompts.ocr is required")

@@ -98,7 +98,7 @@ func (c *LLMClient) doRequestWithRetry(req *http.Request) (*http.Response, error
 		resp.Body.Close()
 
 		if attempt < maxRetries {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(time.Duration(100*attempt) * time.Millisecond)
 			continue
 		}
 	}
@@ -230,20 +230,9 @@ func (c *LLMClient) GenerateTitleFromContent(content string) (CaptionResponse, e
 	}
 
 	// Create the structured prompt for title generation
-	prompt := fmt.Sprintf(`You are an AI designed to generate descriptive titles for document content.
-Please provide a list of possible titles, each with a relevance score between 0 and 1 that indicates how well the title describes the content.
-Your response must be a JSON object matching the following schema:
-
-- Include at least 3 titles.
-- Do not include any extra information or explanation.
-- Keep the language of the original document.
-
-Task:
-Given the content, return your output in the exact JSON structure as described above.
-
-Content:
-
-%s`, content)
+	prompt := c.config.LLM.Models.TitleGeneration
+	prompt = strings.ReplaceAll(prompt, "{content}", content)
+	prompt = strings.ReplaceAll(prompt, "{truncate_chars}", fmt.Sprintf("%d", c.config.Processing.TitleGeneration.TruncateCharactersOfContent))
 
 	response, err := c.sendStructuredChatRequest(c.config.LLM.Models.TitleGeneration, prompt)
 	if err != nil {
