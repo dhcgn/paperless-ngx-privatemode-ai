@@ -53,6 +53,7 @@ To obtain an API key, visit: https://www.privatemode.ai/api
 paperless-ngx-privatemode-ai.exe --config config.yaml
 ```
 
+
 ### Automatic Title Generation (Autonomous Mode)
 
 To automatically set titles for documents matching the configured pattern (without user interaction), use:
@@ -62,6 +63,8 @@ paperless-ngx-privatemode-ai.exe --config config.yaml --auto-set-titles-for-docu
 ```
 
 This will run the title generation for all matching documents and exit. No confirmation dialog will be shown, and the first suggested title will be used for each document.
+
+**Note:** In this mode, the tool automatically appends `(auto-generated)` to each title it sets. This makes it easy for users to spot titles that were generated without manual review.
 
 ### Config
 
