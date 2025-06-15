@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -93,18 +94,38 @@ type ModelsResponse struct {
 	Data []ModelInfo `json:"data"`
 }
 
-func NewLLMClient(config *config.Config) *LLMClient {
-	// Use configured timeout or default to 300 seconds (5 minutes)
-	timeout := config.LLM.API.Timeout
-	if timeout <= 0 {
-		timeout = 300 // Default to 5 minutes
+func newHTTPClient(timeoutSec int) *http.Client {
+	if timeoutSec <= 0 {
+		timeoutSec = 120 // Default to 2 minutes
 	}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 10 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+		DisableKeepAlives:     false,
+		DisableCompression:    false,
+	}
+	return &http.Client{
+		Transport: transport,
+		Timeout:   time.Duration(timeoutSec) * time.Second,
+	}
+}
 
+func NewLLMClient(config *config.Config) *LLMClient {
+	timeout := config.LLM.API.Timeout
 	return &LLMClient{
-		config: config,
-		httpClient: &http.Client{
-			Timeout: time.Duration(timeout) * time.Second,
-		},
+		config:     config,
+		httpClient: newHTTPClient(timeout),
 	}
 }
 
@@ -121,7 +142,11 @@ func (c *LLMClient) CheckConnection() error {
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	defer resp.Body.Close()
+	// Always drain and close the body for connection reuse
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -289,7 +314,10 @@ func (c *LLMClient) sendOCRRequest(model, prompt string, imageData []byte) (stri
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -447,7 +475,10 @@ func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
