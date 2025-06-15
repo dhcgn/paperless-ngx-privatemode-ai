@@ -24,13 +24,15 @@ type ActionExecutor struct {
 	paperlessClient *internal.PaperlessClient
 	llmClient       *internal.LLMClient
 	config          *config.Config
+	autonomous      bool // If true, actions will be executed without user interaction
 }
 
-func NewActionExecutor(paperlessClient *internal.PaperlessClient, llmClient *internal.LLMClient, config *config.Config) *ActionExecutor {
+func NewActionExecutor(paperlessClient *internal.PaperlessClient, llmClient *internal.LLMClient, config *config.Config, autonomous bool) *ActionExecutor {
 	return &ActionExecutor{
 		paperlessClient: paperlessClient,
 		llmClient:       llmClient,
 		config:          config,
+		autonomous:      autonomous,
 	}
 }
 

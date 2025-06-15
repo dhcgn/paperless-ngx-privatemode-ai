@@ -22,6 +22,7 @@ var (
 func main() {
 	// Parse command line arguments
 	configPath := flag.String("config", "", "Path to configuration file")
+	autoSetTitles := flag.Bool("auto-set-titles-for-documents-from-pattern", false, "Automatically set titles for documents matching the configured pattern and exit")
 	flag.Parse()
 
 	// Show banner
@@ -36,7 +37,8 @@ func main() {
 
 	// Initialize application
 	app := &App{
-		ConfigPath: *configPath,
+		ConfigPath:    *configPath,
+		AutoSetTitles: *autoSetTitles,
 	}
 
 	// Run the application following the program flow
@@ -58,8 +60,9 @@ func showBanner() {
 }
 
 type App struct {
-	ConfigPath string
-	Config     *config.Config
+	ConfigPath    string
+	Config        *config.Config
+	AutoSetTitles bool
 }
 
 func (a *App) Run() error {
@@ -96,18 +99,23 @@ func (a *App) Run() error {
 	pterm.Success.Println("LLM service is accessible")
 
 	// 5. Ask user for action
-	action, err := a.askUserForAction()
+	action, autonomous, err := a.askUserForAction()
 	if err != nil {
 		return fmt.Errorf("failed to get user action: %w", err)
 	}
 
 	// 6. Execute action and show progress
 	pterm.Info.Printf("Executing action: %s\n", action.Description())
-	executor := processor.NewActionExecutor(paperlessClient, llmClient, a.Config)
+	executor := processor.NewActionExecutor(paperlessClient, llmClient, a.Config, autonomous)
 	return executor.Execute(action)
 }
 
-func (a *App) askUserForAction() (processor.Action, error) {
+func (a *App) askUserForAction() (processor.Action, bool, error) {
+	if a.AutoSetTitles {
+		pterm.Info.Println("Automatically setting titles for documents matching the configured pattern...")
+		return &processor.SetTitleAction{}, true, nil
+	}
+
 	pterm.Println()
 	pterm.DefaultHeader.Println("Select an action:")
 	pterm.Println()
@@ -127,19 +135,19 @@ func (a *App) askUserForAction() (processor.Action, error) {
 		Show("Choose an action:")
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user selection: %w", err)
+		return nil, false, fmt.Errorf("failed to get user selection: %w", err)
 	}
 
 	switch selectedOption {
 	case options[0]:
-		return &processor.SetTitleAction{}, nil
+		return &processor.SetTitleAction{}, false, nil
 	case options[1]:
-		return &processor.SetOcrInContentAction{}, nil
+		return &processor.SetOcrInContentAction{}, false, nil
 	case options[2]:
 		pterm.Info.Println("Exiting...")
 		os.Exit(0)
-		return nil, nil
+		return nil, false, nil
 	default:
-		return nil, fmt.Errorf("invalid selection")
+		return nil, false, fmt.Errorf("invalid selection")
 	}
 }

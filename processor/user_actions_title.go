@@ -45,17 +45,19 @@ func (a *SetTitleAction) Execute(executor *ActionExecutor) error {
 	pterm.DefaultBarChart.WithHorizontal().WithBars(bars).WithShowValue().Render()
 
 	// Ask for confirmation
-	confirmed, err := pterm.DefaultInteractiveConfirm.
-		WithDefaultValue(false).
-		WithDefaultText("Do you want to generate new titles for these documents using LLM?").
-		Show()
-	if err != nil {
-		return fmt.Errorf("failed to get confirmation: %w", err)
-	}
+	if !executor.autonomous {
+		confirmed, err := pterm.DefaultInteractiveConfirm.
+			WithDefaultValue(false).
+			WithDefaultText("Do you want to generate new titles for these documents using LLM?").
+			Show()
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation: %w", err)
+		}
 
-	if !confirmed {
-		pterm.Info.Println("Operation cancelled by user")
-		return nil
+		if !confirmed {
+			pterm.Info.Println("Operation cancelled by user")
+			return nil
+		}
 	}
 
 	// Process documents
@@ -152,7 +154,7 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []internal
 		var selectedTitle string
 		var userConfirmed bool
 
-		if userCallback != nil {
+		if userCallback != nil && !e.autonomous {
 			pterm.Info.Println("Start User Interaction")
 			selectedTitle, userConfirmed = userCallback(doc, captions)
 			if !userConfirmed {
@@ -166,6 +168,11 @@ func (e *ActionExecutor) processDocumentsForTitleGeneration(documents []internal
 		} else {
 			// Use the first generated title if no callback
 			selectedTitle = captions.Captions[0].Caption
+
+			if e.autonomous {
+				selectedTitle = selectedTitle + " (auto-generated)"
+			}
+
 			userConfirmed = true
 		}
 
