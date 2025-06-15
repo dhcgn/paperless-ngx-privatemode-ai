@@ -37,9 +37,11 @@ type PaperlessConfig struct {
 
 type LLMConfig struct {
 	API struct {
-		BaseURL  string `yaml:"base_url"`
-		Endpoint string `yaml:"endpoint"`
-		Timeout  int    `yaml:"timeout"` // Timeout in seconds for LLM API requests
+		BaseURL     string `yaml:"base_url"`
+		Endpoint    string `yaml:"endpoint"`
+		Timeout     int    `yaml:"timeout"` // Timeout in seconds for LLM API requests
+		Debug       bool   `yaml:"debug"`
+		DebugFolder string `yaml:"debug_folder"`
 	} `yaml:"api"`
 	Models struct {
 		TitleGeneration string `yaml:"title_generation"`

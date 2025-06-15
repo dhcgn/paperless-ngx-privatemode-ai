@@ -14,6 +14,8 @@ llm:
     base_url: "http://localhost:8080"
     endpoint: "/v1/chat/completions"
     timeout: 120 # Timeout in seconds for LLM API requests (5 minutes)
+    debug: false # Enable debug logging for LLM API requests
+    debug_folder: "./llm_debug" # Folder to store debug logs and payloads
   models:
     title_generation: "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4"
     ocr: "leon-se/gemma-3-27b-it-fp8-dynamic"

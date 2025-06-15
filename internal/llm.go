@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -274,6 +276,15 @@ func (c *LLMClient) sendOCRRequest(model, prompt string, imageData []byte) (stri
 
 	req.Header.Set("Content-Type", "application/json")
 
+	if c.config.LLM.API.Debug && c.config.LLM.API.DebugFolder != "" {
+		err = saveDebugScript(url, reqBody, c.config.LLM.API.DebugFolder, "ocr-request")
+		if err != nil {
+			return "", fmt.Errorf("failed to save debug script: %w", err)
+		} else {
+			fmt.Printf("Debug script saved to %s\n", c.config.LLM.API.DebugFolder)
+		}
+	}
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
@@ -302,58 +313,82 @@ func (c *LLMClient) sendOCRRequest(model, prompt string, imageData []byte) (stri
 	return chatResp.Choices[0].Message.Content, nil
 }
 
-func (c *LLMClient) sendChatRequest(model, prompt string) (string, error) {
-	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
-
-	chatReq := ChatRequest{
-		Model: model,
-		Messages: []ChatMessage{
-			{
-				Role:    "user",
-				Content: prompt,
-			},
-		},
-	}
-
-	reqBody, err := json.Marshal(chatReq)
+func saveDebugScript(url string, reqBody []byte, debugFolder string, name string) error {
+	script := fmt.Sprintf(`#!/bin/bash
+curl -X POST %s \
+-H "Content-Type: application/json" \
+-d '%s'
+	`, url, reqBody)
+	timestamp := time.Now().Format("20060102-150405")
+	filepath := filepath.Join(debugFolder, timestamp+"-"+name+".sh")
+	err := os.WriteFile(filepath, []byte(script), 0644)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
+		return fmt.Errorf("failed to write debug script: %w", err)
 	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewReader(reqBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var chatResp ChatResponse
-	if err := json.Unmarshal(body, &chatResp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if len(chatResp.Choices) == 0 {
-		return "", fmt.Errorf("no choices in response")
-	}
-
-	return chatResp.Choices[0].Message.Content, nil
+	return nil
 }
+
+// func (c *LLMClient) sendChatRequest(model, prompt string) (string, error) {
+// 	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
+
+// 	chatReq := ChatRequest{
+// 		Model: model,
+// 		Messages: []ChatMessage{
+// 			{
+// 				Role:    "user",
+// 				Content: prompt,
+// 			},
+// 		},
+// 	}
+
+// 	reqBody, err := json.Marshal(chatReq)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to marshal request: %w", err)
+// 	}
+
+// 	req, err := http.NewRequest("POST", url, bytes.NewReader(reqBody))
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to create request: %w", err)
+// 	}
+
+// 	req.Header.Set("Content-Type", "application/json")
+
+// 	if c.config.LLM.API.Debug && c.config.LLM.API.DebugFolder != "" {
+// 		err = saveDebugScript(url, reqBody, c.config.LLM.API.DebugFolder, "title-request")
+// 		if err != nil {
+// 			return "", fmt.Errorf("failed to save debug script: %w", err)
+// 		} else {
+// 			fmt.Printf("Debug script saved to %s\n", c.config.LLM.API.DebugFolder)
+// 		}
+// 	}
+
+// 	resp, err := c.httpClient.Do(req)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to send request: %w", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	if resp.StatusCode != http.StatusOK {
+// 		body, _ := io.ReadAll(resp.Body)
+// 		return "", fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(body))
+// 	}
+
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to read response: %w", err)
+// 	}
+
+// 	var chatResp ChatResponse
+// 	if err := json.Unmarshal(body, &chatResp); err != nil {
+// 		return "", fmt.Errorf("failed to parse response: %w", err)
+// 	}
+
+// 	if len(chatResp.Choices) == 0 {
+// 		return "", fmt.Errorf("no choices in response")
+// 	}
+
+// 	return chatResp.Choices[0].Message.Content, nil
+// }
 
 func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, error) {
 	url := strings.TrimSuffix(c.config.LLM.API.BaseURL, "/") + c.config.LLM.API.Endpoint
@@ -398,6 +433,15 @@ func (c *LLMClient) sendStructuredChatRequest(model, prompt string) (string, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+
+	if c.config.LLM.API.Debug && c.config.LLM.API.DebugFolder != "" {
+		err = saveDebugScript(url, reqBody, c.config.LLM.API.DebugFolder, "title-request")
+		if err != nil {
+			return "", fmt.Errorf("failed to save debug script: %w", err)
+		} else {
+			fmt.Printf("Debug script saved to %s\n", c.config.LLM.API.DebugFolder)
+		}
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

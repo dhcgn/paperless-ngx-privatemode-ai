@@ -53,13 +53,17 @@ func TestLLMClient_GenerateTitleFromContent(t *testing.T) {
 	config := &cfg.Config{
 		LLM: cfg.LLMConfig{
 			API: struct {
-				BaseURL  string `yaml:"base_url"`
-				Endpoint string `yaml:"endpoint"`
-				Timeout  int    `yaml:"timeout"`
+				BaseURL     string `yaml:"base_url"`
+				Endpoint    string `yaml:"endpoint"`
+				Timeout     int    `yaml:"timeout"`
+				Debug       bool   `yaml:"debug"`
+				DebugFolder string `yaml:"debug_folder"`
 			}{
-				BaseURL:  "http://localhost:8080",
-				Endpoint: "/v1/chat/completions",
-				Timeout:  30, // 30 seconds timeout for integration tests
+				BaseURL:     "http://localhost:8080",
+				Endpoint:    "/v1/chat/completions",
+				Timeout:     30, // 30 seconds timeout for integration tests
+				Debug:       false,
+				DebugFolder: "./llm_debug",
 			},
 			Models: struct {
 				TitleGeneration string `yaml:"title_generation"`
@@ -138,13 +142,17 @@ func TestLLMClient_MakeOcrFrom(t *testing.T) {
 	config := &cfg.Config{
 		LLM: cfg.LLMConfig{
 			API: struct {
-				BaseURL  string `yaml:"base_url"`
-				Endpoint string `yaml:"endpoint"`
-				Timeout  int    `yaml:"timeout"`
+				BaseURL     string `yaml:"base_url"`
+				Endpoint    string `yaml:"endpoint"`
+				Timeout     int    `yaml:"timeout"`
+				Debug       bool   `yaml:"debug"`
+				DebugFolder string `yaml:"debug_folder"`
 			}{
-				BaseURL:  "http://localhost:8080",
-				Endpoint: "/v1/chat/completions",
-				Timeout:  60, // Longer timeout for OCR processing
+				BaseURL:     "http://localhost:8080",
+				Endpoint:    "/v1/chat/completions",
+				Timeout:     60, // Longer timeout for OCR processing
+				Debug:       false,
+				DebugFolder: "./llm_debug",
 			},
 			Models: struct {
 				TitleGeneration string `yaml:"title_generation"`
