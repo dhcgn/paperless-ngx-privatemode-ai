@@ -230,7 +230,7 @@ func (c *LLMClient) GenerateTitleFromContent(content string) (CaptionResponse, e
 	}
 
 	// Create the structured prompt for title generation
-	prompt := c.config.LLM.Models.TitleGeneration
+	prompt := c.config.LLM.Prompts.TitleGeneration
 	prompt = strings.ReplaceAll(prompt, "{content}", content)
 	prompt = strings.ReplaceAll(prompt, "{truncate_chars}", fmt.Sprintf("%d", c.config.Processing.TitleGeneration.TruncateCharactersOfContent))
 
