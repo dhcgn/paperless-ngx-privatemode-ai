@@ -140,7 +140,10 @@ func (c *LLMClient) CheckConnection() error {
 	titleModelAvailable := false
 	contentModelAvailable := false
 
+	allRemoteModelsIds := []string{}
+
 	for _, model := range modelsResp.Data {
+		allRemoteModelsIds = append(allRemoteModelsIds, model.ID)
 		if model.ID == c.config.LLM.Models.TitleGeneration {
 			titleModelAvailable = true
 		}
@@ -150,10 +153,11 @@ func (c *LLMClient) CheckConnection() error {
 	}
 
 	if !titleModelAvailable {
-		return fmt.Errorf("title generation model '%s' not available", c.config.LLM.Models.TitleGeneration)
+		return fmt.Errorf("title generation model '%s' not available, found %v", c.config.LLM.Models.TitleGeneration, allRemoteModelsIds)
 	}
 	if !contentModelAvailable {
-		return fmt.Errorf("content extraction model '%s' not available", c.config.LLM.Models.OCR)
+
+		return fmt.Errorf("content extraction model '%s' not available, found %v", c.config.LLM.Models.OCR, allRemoteModelsIds)
 	}
 
 	return nil

@@ -16,7 +16,7 @@ llm:
     timeout: 120 # Timeout in seconds for LLM API requests (5 minutes)
   models:
     title_generation: "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4"
-    ocr: "google/gemma-3-27b-it"  
+    ocr: "leon-se/gemma-3-27b-it-fp8-dynamic"
   prompts:
     # Change the mentioned language to your preferred language if needed
     title_generation: |    
