@@ -1,6 +1,6 @@
 {
     "chat.promptFiles": true,
     "go.testFlags": ["-tags=integration"],
-    "go.buildTags": "integration",
+    "go.buildTags": "contrast_unstable_api,integration",
     "go.testTimeout": "300s"
 }
