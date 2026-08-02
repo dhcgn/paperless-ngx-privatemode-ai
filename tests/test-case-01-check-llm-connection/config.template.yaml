@@ -19,7 +19,7 @@ llm:
     workspace: "./privatemode-proxy-data"
   models:
     title_generation: "gpt-oss-120b"
-    ocr: "gemma-4-31b"
+    ocr: "kimi-latest"
   prompts:
     title_generation: "unused in smoke test - {content}"
     ocr: "unused in smoke test"

@@ -36,18 +36,7 @@ try {
     $template.Replace("__PRIVATE_MODE_API_KEY__", $apiKey) | Set-Content -Path $GeneratedConfig -NoNewline
 
     Write-Host "Building tool..."
-    Push-Location $RepoRoot
-    try {
-        # privatemode-proxy reports this to the Privatemode API, which rejects old/unrecognized versions.
-        # Must match the github.com/edgelesssys/continuum version pinned in go.mod.
-        $proxyVersionFlag = "-X github.com/edgelesssys/continuum/internal/oss/constants.version=v1.50.0"
-        go build -tags contrast_unstable_api -o $Binary -ldflags $proxyVersionFlag ./main.go
-        if ($LASTEXITCODE -ne 0) {
-            throw "go build failed with exit code $LASTEXITCODE"
-        }
-    } finally {
-        Pop-Location
-    }
+    & (Join-Path $RepoRoot "scripts\build.ps1") -OutputFile $Binary
 
     Write-Host "Running --check-llm-connection..."
     Push-Location $ScriptDir

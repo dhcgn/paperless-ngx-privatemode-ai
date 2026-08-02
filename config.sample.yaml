@@ -7,7 +7,7 @@ paperless:
     page_size: 100000 # number of documents to fetch in one API call
   web_url: "https://my-domain.com"
 
-## LLM Service Configuration
+# LLM Service Configuration
 llm:
   api:
     base_url: "http://localhost:8080"
@@ -24,13 +24,13 @@ llm:
   models:
     # See https://docs.privatemode.ai for the current list of available models, or query GET /v1/models
     title_generation: "gpt-oss-120b"
-    ocr: "gemma-4-31b"
+    ocr: "kimi-latest"
   prompts:
     # Change the mentioned language to your preferred language if needed
-    title_generation: |    
+    title_generation: |
       Analyze the document content and generate a comprehensive summary and multiple title suggestions.
 
-      Preferd language: German (Deutsch)
+      Preferred language: German (Deutsch)
 
       CRITICAL REQUIREMENTS:
       - You MUST respond with ONLY valid JSON matching this exact structure
@@ -71,13 +71,13 @@ llm:
       - 0.0-0.29: Vague or poorly matching title
 
       --- document ocr content (first {truncate_chars} chars) ---
-      
-      {content}    
+
+      {content}
     # Change the mentioned language to your preferred language if needed
     ocr: |
       You are an advanced OCR and image analysis system. Your task is to extract ALL text content from the provided image and describe what you see.
 
-      Preferd language: German (Deutsch)
+      Preferred language: German (Deutsch)
 
       LANGUAGE REQUIREMENTS:
       - Respond in the same language as the document content
@@ -99,14 +99,14 @@ llm:
       - Start with document type identification (invoice, receipt, letter, form, etc.)
       - Describe layout and structure (tables, columns, letterhead, logos)
       - Note image quality, scan artifacts, or clarity issues
-      - Identify any non-text elements (signatures, stamps, charts, images)      
-      
+      - Identify any non-text elements (signatures, stamps, charts, images)
+
       OUTPUT FORMAT:
       Document Type: [Brief description of document type]
       Description: [Simple description of layout and any notable elements]
 
       [All extracted text content here - preserve exact formatting]
-    
+
       SPECIAL CASES:
       - If no text is present: "No text content found. Image shows: [description]"
       - If text is completely illegible: "Text present but illegible due to [reason]. Image shows: [description]"
@@ -127,9 +127,10 @@ filters:
 # Processing Configuration
 processing:
   title_generation:
-    truncate_characters_of_content: 2000 
+    truncate_characters_of_content: 2000
 
-
+# External Tools
 tools:
   imagemagick-for-windows:
+    # Example path, adjust to match your installed ImageMagick version
     fullpath: 'C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe'
