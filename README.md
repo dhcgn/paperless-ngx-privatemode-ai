@@ -34,17 +34,9 @@ When generating titles, the LLM provides multiple suggestions and you can intera
 This tool requires two systems to be available:
 
 1. **Paperless-NGX** - Document management system
-2. **Privatemode-Proxy** - Confidential LLM proxy
+2. **Privatemode.ai** - Confidential LLM API (the tool starts and manages the `privatemode-proxy` itself, no Docker required)
 
-### Running Privatemode-Proxy
-
-You can easily run Privatemode-Proxy using Docker:
-
-```bash
-docker run -p 8080:8080 --rm ghcr.io/edgelesssys/privatemode/privatemode-proxy:latest --apiKey $PRIVATE_MODE_API_KEY
-```
-
-To obtain an API key, visit: https://www.privatemode.ai/api
+To obtain a Privatemode API key, visit: https://www.privatemode.ai/api. Set it in your config file under `llm.proxy.api_key` (see [config.sample.yaml](config.sample.yaml)).
 
 ## Run
 
@@ -87,9 +79,12 @@ Choose an action: [type to search]:
 1. Load configuration from argument `--config`
 2. Check configuration
 3. Check if `paperless-ngx` is accessible
-4. Check if `privatemode.ai` is accessible and models are available
-5. Ask user for action
-6. Execute action and show progress
+4. Start the managed `privatemode-proxy` (using `llm.proxy.api_key`)
+5. Check if `privatemode.ai` is accessible and models are available
+6. Ask user for action
+7. Execute action and show progress
+
+Use `--check-llm-connection` to only run steps 1, 2, 4 and 5, then exit - useful to verify your Privatemode API key and connectivity without touching Paperless NGX.
 
 
 ## More Use Cases with Privatemode.ai

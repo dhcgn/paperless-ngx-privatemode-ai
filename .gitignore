@@ -25,3 +25,9 @@ go.work.sum
 .env
 config.production.yaml
 paperless-ngx-privatemode-ai
+
+# privatemode-proxy managed runtime data (manifest cache, logs)
+privatemode-proxy-data/
+
+# generated test configs containing secrets
+tests/**/config.generated.yaml

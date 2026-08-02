@@ -44,6 +44,7 @@ type LLMConfig struct {
 		Debug       bool   `yaml:"debug"`
 		DebugFolder string `yaml:"debug_folder"`
 	} `yaml:"api"`
+	Proxy  ProxyConfig `yaml:"proxy"`
 	Models struct {
 		TitleGeneration string `yaml:"title_generation"`
 		OCR             string `yaml:"ocr"`
@@ -52,6 +53,13 @@ type LLMConfig struct {
 		TitleGeneration string `yaml:"title_generation"`
 		OCR             string `yaml:"ocr"`
 	} `yaml:"prompts"`
+}
+
+// ProxyConfig configures the privatemode-proxy instance the tool manages in-process.
+type ProxyConfig struct {
+	APIKey    string `yaml:"api_key"`
+	Workspace string `yaml:"workspace"` // defaults to "./privatemode-proxy-data" when empty
+	LogLevel  string `yaml:"log_level"` // defaults to "error" when empty
 }
 
 type FiltersConfig struct {
@@ -96,6 +104,9 @@ func (c *Config) Validate() error {
 	// Validate LLM config
 	if c.LLM.API.BaseURL == "" {
 		return fmt.Errorf("llm.api.base_url is required")
+	}
+	if c.LLM.Proxy.APIKey == "" {
+		return fmt.Errorf("llm.proxy.api_key is required")
 	}
 	if c.LLM.Models.TitleGeneration == "" {
 		return fmt.Errorf("llm.models.title_generation is required")

@@ -10,15 +10,21 @@ paperless:
 ## LLM Service Configuration
 llm:
   api:
-    # docker run -p 8080:8080 --rm ghcr.io/edgelesssys/privatemode/privatemode-proxy:latest --apiKey $PRIVATE_MODE_API_KEY
     base_url: "http://localhost:8080"
     endpoint: "/v1/chat/completions"
     timeout: 120 # Timeout in seconds for LLM API requests (5 minutes)
     debug: false # Enable debug logging for LLM API requests
     debug_folder: "./llm_debug" # Folder to store debug logs and payloads
+  # The tool starts and manages privatemode-proxy itself (no more manual "docker run" step).
+  # Get an API key at https://www.privatemode.ai/api
+  proxy:
+    api_key: "00000000-0000-0000-0000-000000000000" # Privatemode API key
+    workspace: "./privatemode-proxy-data" # Optional, defaults to this path. Stores manifest/attestation cache data
+    log_level: "error" # Optional, defaults to "error". privatemode-proxy's own log verbosity
   models:
-    title_generation: "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4"
-    ocr: "leon-se/gemma-3-27b-it-fp8-dynamic"
+    # See https://docs.privatemode.ai for the current list of available models, or query GET /v1/models
+    title_generation: "gpt-oss-120b"
+    ocr: "gemma-4-31b"
   prompts:
     # Change the mentioned language to your preferred language if needed
     title_generation: |    

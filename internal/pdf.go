@@ -80,3 +80,50 @@ func RenderPageToJpg(c *config.Config, pdfBytes []byte, page int) ([]byte, error
 
 	return jpgBytes, nil
 }
+
+// ConvertImageToJpg converts an arbitrary image file (e.g. webp, png) to JPEG using ImageMagick.
+// sourceExt is the source file's extension (including the dot, e.g. ".webp") so ImageMagick can
+// detect the input format correctly.
+func ConvertImageToJpg(c *config.Config, imageBytes []byte, sourceExt string) ([]byte, error) {
+	// 1. Write image bytes to a temporary file
+	inputFile, err := os.CreateTemp("", "input-*"+sourceExt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp input file: %w", err)
+	}
+	defer os.Remove(inputFile.Name())
+
+	if _, err := inputFile.Write(imageBytes); err != nil {
+		inputFile.Close()
+		return nil, fmt.Errorf("failed to write image bytes: %w", err)
+	}
+	inputFile.Close()
+
+	// 2. Prepare output JPG temp file
+	jpgFile, err := os.CreateTemp("", "output-*.jpg")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp JPG file: %w", err)
+	}
+	jpgFilePath := jpgFile.Name()
+	jpgFile.Close()
+	defer os.Remove(jpgFilePath)
+
+	// 3. Build and run ImageMagick command
+	magickPath, err := getImageMagickCommand(c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ImageMagick command: %w", err)
+	}
+
+	cmd := exec.Command(magickPath, inputFile.Name(), jpgFilePath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("ImageMagick failed: %w, output: %s", err, string(output))
+	}
+
+	// 4. Read the resulting JPG file
+	jpgBytes, err := os.ReadFile(jpgFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read output JPG: %w", err)
+	}
+
+	return jpgBytes, nil
+}

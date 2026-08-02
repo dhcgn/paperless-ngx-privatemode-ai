@@ -7,7 +7,7 @@
             "command": "go",
             "args": [
                 "test",
-                "-tags=integration",
+                "-tags=integration,contrast_unstable_api",
                 "-v",
                 "-timeout=300s",
                 "./..."
@@ -31,7 +31,7 @@
             "command": "go",
             "args": [
                 "test",
-                "-tags=integration",
+                "-tags=integration,contrast_unstable_api",
                 "-v",
                 "-timeout=300s",
                 "-run=${input:testName}",

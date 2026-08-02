@@ -1,0 +1,29 @@
+# Template config for the tests/test-case-01 smoke test.
+# run.sh / run.ps1 substitute __PRIVATE_MODE_API_KEY__ with the value from .env and write the
+# result to config.generated.yaml (gitignored, since it will contain a real API key).
+#
+# This only exercises the managed privatemode-proxy + LLM connectivity check
+# (via --check-llm-connection), so the Paperless section below is never actually contacted.
+paperless:
+  api:
+    base_url: "http://paperless.invalid:8000"
+    token: "unused-in-smoke-test"
+
+llm:
+  api:
+    base_url: "http://localhost:8099"
+    endpoint: "/v1/chat/completions"
+    timeout: 120
+  proxy:
+    api_key: "__PRIVATE_MODE_API_KEY__"
+    workspace: "./privatemode-proxy-data"
+  models:
+    title_generation: "gpt-oss-120b"
+    ocr: "gemma-4-31b"
+  prompts:
+    title_generation: "unused in smoke test - {content}"
+    ocr: "unused in smoke test"
+
+processing:
+  title_generation:
+    truncate_characters_of_content: 2000

@@ -20,5 +20,10 @@ fi
 COMMIT=$(git rev-parse --short HEAD)
 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
 
+# privatemode-proxy reports this to the Privatemode API, which rejects unrecognized/old versions.
+# Must match the github.com/edgelesssys/continuum version pinned in go.mod.
+PRIVATEMODE_PROXY_VERSION="v1.50.0"
+
 # Build the main package instead of all packages
-go build -trimpath -v -o "${OUTPUT_FILE}" -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILDTIME}" ./main.go
+# contrast_unstable_api is required to enable the privatemode-proxy attestation SDK we embed
+go build -tags contrast_unstable_api -trimpath -v -o "${OUTPUT_FILE}" -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILDTIME} -X github.com/edgelesssys/continuum/internal/oss/constants.version=${PRIVATEMODE_PROXY_VERSION}" ./main.go

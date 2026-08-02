@@ -10,6 +10,8 @@ llm:
     base_url: "http://test:9876"
     endpoint: "/v1/chat/completions"
     timeout: 30 # Shorter timeout for tests
+  proxy:
+    api_key: "test"
   models:
     title_generation: "test-model"
     content_extraction: "test-model"

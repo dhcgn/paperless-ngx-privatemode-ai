@@ -9,7 +9,32 @@ permissions:
   contents: write  # Required for creating releases
 
 jobs:
-  build:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history and tags
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+
+    # Built natively on windows-latest (not cross-compiled) since the embedded privatemode-proxy
+    # dependency graph is not verified for CGO cross-compilation from Linux.
+    - name: Build Windows
+      shell: bash
+      run: |
+        chmod +x ./scripts/build.sh
+        ./scripts/build.sh paperless-ngx-privatemode-ai-windows-am64.exe
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: windows-binary
+        path: paperless-ngx-privatemode-ai-windows-am64.exe
+
+  build-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -17,25 +42,31 @@ jobs:
         fetch-depth: 0  # Fetch all history and tags
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
-
-    - name: Build Windows
-      env:
-        GOOS: windows
-        GOARCH: amd64
-      run: |
-        chmod +x ./scripts/build.sh
-        ./scripts/build.sh paperless-ngx-privatemode-ai-windows-am64.exe
+        go-version: '1.26'
 
     - name: Build Linux
-      env:
-         GOOS: linux
-         GOARCH: amd64
       run: |
-          chmod +x ./scripts/build.sh
-          ./scripts/build.sh paperless-ngx-privatemode-ai-linux-am64.bin
+        chmod +x ./scripts/build.sh
+        ./scripts/build.sh paperless-ngx-privatemode-ai-linux-am64.bin
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: linux-binary
+        path: paperless-ngx-privatemode-ai-linux-am64.bin
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: windows-binary
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: linux-binary
 
     - name: Release
       uses: softprops/action-gh-release@v2
